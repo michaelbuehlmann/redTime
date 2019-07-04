@@ -1,0 +1,112 @@
+# ==============================================================================
+# =================== Parameter file for Time-RG computation ===================
+# ==============================================================================
+# 
+# (Lines beginning with a '#' are ignored by the code.  Parameters must be 
+# listed in the following order: 
+#   n_s  
+#   sigma_8  
+#   h  
+#   Omega_m  
+#   Omega_b  
+#   Omega_nu
+#   T_cmb[Kelvins]  
+#   w_0  
+#   w_a  
+#   switch_nonlinear  
+#   switch_1loop  
+#   switch_print_linear
+#   switch_print_rsd  
+#   z_initial
+#   num_z_outputs
+#   z_out_1 z_out_2 ... z_out_{num_z_outputs}
+#   file_transfer_function
+#   num_massive_nu_approx
+#   file_nu_transfer_root
+#   num_interp_redshifts
+#   z_1 z_2 ... z_num_interp_redshifts
+# where parameters beginning with "switch" are 0 or 1, those beginning with 
+# "num" are integers, and those beginning with "file" are character strings.)
+#
+# -------------------------- cosmologial parameters ----------------------------
+#
+# n_s: scalar spectral index
+0.87969
+#
+# sigma_8: z=0 normalization of linear power spectrum
+0.80560
+#
+# h: Hubble parameter today, H_0 / (100 km/sec/Mpc)
+0.73418
+#
+# Omega_m: total matter fraction today (cdm, baryons, massive nu)
+0.286233679143621
+#
+# Omega_b: baryon fraction today
+0.0430930827493416
+#
+# Omega_nu: massive neutrino fraction today (0 if massless)
+0.00576437405571056
+#
+# T_cmb_K: CMB temperature today, in units of Kelvins
+2.726
+#
+# w0: dark energy equation of state today
+-1.2147
+#
+# wa: derivative -dw/da in CPL parameterization
+-1.1120
+#
+# ----------------------------- code switches ----------------------------------
+#
+# nonlinear computation: 0 for linear, 1 for nonlinear
+1
+#
+# 1-loop approximation to nonlinear computation (0 for full NL, 1 for 1-loop)
+1
+#
+# print linear evolution information: D, f, P_lin for cb and nu
+1
+#
+# print RSD information: P_{B,j} {j=2,4,6} and P_{T,j} {j=2,4,6,8}
+1
+#
+# -------------------------------- outputs -------------------------------------
+#
+# initial redshift
+200
+#
+# number of redshifts at which to print results
+7
+#
+# redshifts of outputs (arranged from greatest to least)
+5 4 3 2 1 0.5 0
+#
+# ---------------------------- transfer inputs ---------------------------------
+#
+# Transfer function at z=0, in CAMB standard format (7 columns:
+#   k[h/Mpc], delta_cdm/k^2, delta_b/k^2, delta_gamma/k^2, delta_massless/k^2, 
+#   delta_massive/k^2, delta_tot/k^2
+# where massive and massless refer to neutrinos.  
+camb_transfer_z0.dat
+#
+# Massive neutrino approx: 0 for CAMB interpolation, which is the only method
+# implemented in the code so far. 
+0
+#
+# If using CAMB interpolation, provide the transfer filename root, the number 
+# of redshifts, and the list of redshifts from greatest to least.  A transfer 
+# file for a given redshift must be named {transfer root}{redshift}.dat.  For 
+# example, the transfer file corresponding to a transfer root of 
+# camb_transfer_z and a redshift of 3 is camb_transfer_z3.dat. 
+# transfer root:
+camb_transfer_z
+#
+# Number of interpolation redshifts:
+12
+# 
+# List of redshifts, from greatest to least, separated by whitespace.  These
+# should span the range z_initial <= z <= 0.
+200 100 50 20 10 5 4 3 2 1 .5 0
+#
+# ------------------------------------------------------------------------------
