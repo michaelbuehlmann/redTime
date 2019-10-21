@@ -1,4 +1,4 @@
-CCFLAGS=-O3 -fopenmp
+CCFLAGS=-O3 -fopenmp -std=c++11
 PATHS=-I/usr/include -L/usr/lib/x86_64-linux-gnu/
 LIBS=-lgsl -lgslcblas
 
