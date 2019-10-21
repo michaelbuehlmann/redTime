@@ -5,6 +5,8 @@ Installation:
 
 redTime relies on the GNU Scientific Library (GSL), available at https://www.gnu.org/software/gsl/ .  Once this has been installed, edit the PATHS variable in Makefile to include the locations of the GSL headers and libraries.  Then compile redTime using 'make' from the command prompt.
 
+Parallelization in redTime uses OpenMP.  The code may be compiled without parallelization by deleting the "-fopenmp" flag in the Makefile.
+
 --------------------------------------------------------------------------------
 
 Running:
