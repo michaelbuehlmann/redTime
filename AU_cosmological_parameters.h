@@ -333,7 +333,7 @@ class cosmological_parameters{
 
   //CB transfer function file
   string transferfile(){ return tc_c; }
-  int transferfile(char *tfile){ strcpy(tfile,tc_c.c_str()); }
+  int transferfile(char *tfile){ strcpy(tfile,tc_c.c_str()); return 0; }
 
   //initial condition and time stepping information
   double z_in(){ return z_in_inp; }
