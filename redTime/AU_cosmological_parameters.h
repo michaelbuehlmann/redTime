@@ -18,6 +18,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <cmath>
 
 #include <gsl/gsl_errno.h>
@@ -61,16 +62,23 @@ class cosmological_parameters{
   static constexpr double C_rho_gam = 4.46911743913795e-07;
   static constexpr double C_nu_hot = 0.681321952980717;  //3.0*(7.0/8.0) * pow(4.0/\11.0,4.0/3.0);
 
+  //computation of comoving distance vs. eta = ln(a/a_in)
+  static const int N_H0CHI = 1000;
+  double eta_chi_i[N_H0CHI], H0chi_i[N_H0CHI];
+
   //column conventions for standard CAMB transfer function files.  nVars
   //is the total number of columns, while i_k, i_dc, i_db, and i_dnu are
   //the columns corresponding to k, delta_c, delta_b, and delta_nu, in
   //C-style notation (so that the first column number is zero).
+#ifdef CAMB_MODERN
+  static const int nVars = 13, i_k = 0, i_dc = 1, i_db = 2, i_dnu = 5;
+#else
   static const int nVars = 7, i_k = 0, i_dc = 1, i_db = 2, i_dnu = 5;
-
+#endif
   //some useful functions
   static inline void discard_comments(std::ifstream *file){
     while(file->peek()=='#' || file->peek()=='\n'){file->ignore(10000,'\n');} }
- 
+
   static double fdiff(double x, double y){
     return 2.0*fabs(x-y)/(fabs(x)+fabs(y)); }
 
@@ -112,12 +120,12 @@ class cosmological_parameters{
   }
 
   /////////////////////////////////////////////////////////////////////////////
-  static int func_to_integrate_d_dDda_kdep(double a, const double y[], 
+  static int func_to_integrate_d_dDda_kdep(double a, const double y[],
 					   double f[], void *params){
 
     //get params from vector
     input_data *dat = (input_data *)params;
-    double p[11]; 
+    double p[11];
     for(int j=0; j<11; j++) p[j] = dat->p[j];
     double k0 = p[10], fn = p[5] / p[3], fc = 1.0 - fn;
 
@@ -139,10 +147,10 @@ class cosmological_parameters{
     return GSL_SUCCESS;
   }
 
-  static int dummy_jacobian(double t, const double y[], double *dfdy, 
+  static int dummy_jacobian(double t, const double y[], double *dfdy,
 			    double dfdt[], void *params){ return GSL_SUCCESS; }
 
-  static int integrate_growth(double a_begin, double a_end, 
+  static int integrate_growth(double a_begin, double a_end,
 			      input_data *d, double *y){
     const gsl_odeiv_step_type * T  = gsl_odeiv_step_rk8pd;
     double err_abs = 0, err_rel = 1e-6;
@@ -164,6 +172,14 @@ class cosmological_parameters{
   }
 
   /////////////////////////////////////////////////////////////////////////////
+  //comoving distance
+  static double H0chi_integrand(double z, void *params){
+    double *p = (double *)params;
+    double aeta = 1.0 / (1.0 + z), H_H0_eta = H_H0(aeta, p);
+    return 1.0 / H_H0_eta;
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
   //linear power spectrum
 
   //total power spectrum (unnormalized), used to find sigma_8
@@ -179,10 +195,10 @@ class cosmological_parameters{
     return W*W * T*T * F*F * pow(k,dat->p[0]+3.0) / (2.0*M_PI*M_PI);
   }
 
-  static double sigmaV2_integrand(double lnk, void *params){ 
+  static double sigmaV2_integrand(double lnk, void *params){
     input_data *dat = (input_data *)params;
     dat->p[10] = exp(lnk);
-    return exp(lnk)*Plin(0,*dat); 
+    return exp(lnk)*Plin(0,*dat);
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -196,7 +212,7 @@ class cosmological_parameters{
     const int n_f_par = 9, n_i_par = 4; //numbers of float/int params
     int temp_i[n_i_par];
     double temp_f[n_f_par];
-    
+
     std::cout << "#cosmological_parameters: opening parameter file: "
     	      << paramfile_inp.c_str() << endl;
 
@@ -206,7 +222,7 @@ class cosmological_parameters{
     for(int i=0; i<n_f_par; i++){
       cosmological_parameters::discard_comments(&input);
       input >> temp_f[i];
-      if(DEBUG_INPUT) 
+      if(DEBUG_INPUT)
 	std::cout << "cosmological_parameters: read parameter " << i
                   << ": " << temp_f[i] << std::endl;
     }
@@ -215,8 +231,8 @@ class cosmological_parameters{
     for(int i=0; i<n_i_par; i++){
       cosmological_parameters::discard_comments(&input);
       input >> temp_i[i];
-      if(DEBUG_INPUT) 
-        std::cout << "cosmological_parameters: read switch " << i 
+      if(DEBUG_INPUT)
+        std::cout << "cosmological_parameters: read switch " << i
                   << ": " << temp_i[i] << std::endl;
     }
 
@@ -225,7 +241,7 @@ class cosmological_parameters{
     input >> z_in_inp;
     a_in_inp = 1.0 / (1.0 + z_in_inp);
     if(DEBUG_INPUT)
-        std::cout << "cosmological_parameters: read z_in=" 
+        std::cout << "cosmological_parameters: read z_in="
 	          << z_in_inp << std::endl;
 
     //read output redshifts: number and list
@@ -241,15 +257,15 @@ class cosmological_parameters{
       etasteps_inp[i] = log(asteps_inp[i]/a_in_inp);
       if(DEBUG_INPUT)
         std::cout << "cosmological_parameters: z_" << i << " = "
-		  << zsteps_inp[i] << std::endl; 
-    } 
+		  << zsteps_inp[i] << std::endl;
+    }
 
     //read transfer inputs
     cosmological_parameters::discard_comments(&input);
     input >> tc_c;
     if(DEBUG_INPUT)
       std::cout << "cosmological_parameters: transfer file: "
-		<< tc_c.c_str() << std::endl; 
+		<< tc_c.c_str() << std::endl;
 
     int neut_interp_type = -100;
     cosmological_parameters::discard_comments(&input);
@@ -273,7 +289,7 @@ class cosmological_parameters{
     z_transfer_str = new string[n_interp_z];
     z_transfer_flt = new double[n_interp_z];
     cosmological_parameters::discard_comments(&input);
-    for(int i=0; i<n_interp_z; i++){ 
+    for(int i=0; i<n_interp_z; i++){
       input >> z_transfer_str[i];
       z_transfer_flt[i] = atof(z_transfer_str[i].c_str());
       if(DEBUG_INPUT)
@@ -282,7 +298,7 @@ class cosmological_parameters{
     }
 
     input.close();
-    
+
     //input parameters
     ns_c = temp_f[0];
     s8_c = temp_f[1];
@@ -293,14 +309,14 @@ class cosmological_parameters{
     TK_c = temp_f[6];
     w0_c = temp_f[7];
     wa_c = temp_f[8];
-    
+
     //code switches
     S_NL = temp_i[0];//SWITCH_NL;
     S_1L = temp_i[1];//SWITCH_1L;
     S_PL = temp_i[2];//SWITCH_LIN;
     S_PR = temp_i[3];//SWITCH_RSD;
     S_NU = neut_interp_type;
-    
+
     //derived parameters
     Og_c = C_rho_gam * (TK_c*TK_c*TK_c*TK_c) / (h0_c*h0_c);
     fnu_c = On_c / Om_c;
@@ -309,10 +325,10 @@ class cosmological_parameters{
     anu_c = C_nu_hot * Og_c / (fnu_c*Om_c + 1e-15); //nu cold for a>=a_nu
     Or_c = Og_c + On_hot_c*(anu_c>1.0);
     OL_c = 1.0 - Om_c - Or_c;
-    
+
     //initialized!  Don't change parameters after this.
     init = 1;
-  }  
+  }
 
   /////////////////////////////////////////////////////////////////////////////
   /////// COSMOLOGICAL PARAMETERS
@@ -355,8 +371,8 @@ class cosmological_parameters{
     return std::pow(a,-3.0*(1.0+w0_c+wa_c)) * exp(-3.0*wa_c*(1.0-a)); }
   static double E(double a, double *p){
     return std::pow(a,-3.0*(1.0+p[8]+p[9])) * exp(-3.0*p[9]*(1.0-a)); }
-  
-  double dEda(double a){ 
+
+  double dEda(double a){
     return 3.0 * E(a) * (wa_c - (1.0+w0_c+wa_c) / a); }
   static double dEda(double a, double *p){
     return 3.0 * E(a,p) * (p[9] - (1.0+p[8]+p[9]) / a); }
@@ -368,19 +384,19 @@ class cosmological_parameters{
     return 3.0*a*dEda(a)*(wa_c*a - (1.0+w0_c+wa_c)) + 3.0*E(a)*wa_c*a; }
   static double d2E_dlna2(double a, double *p){
     return 3.0*a*dEda(a,p)*(p[9]*a - (1.0+p[8]+p[9])) + 3.0*E(a,p)*p[9]*a; }
-  
+
   double Y(double a){ //Y=rho_nu(a)/rho_cb(a)
     if(a>=anu_c) return fnu_c / fcb_c; //cold
-    return C_nu_hot * Og_c / (fcb_c * Om_c * a); //hot 
+    return C_nu_hot * Og_c / (fcb_c * Om_c * a); //hot
   }
   static double Y(double a, double *p){
     double Og = C_rho_gam * std::pow(p[7]*p[7]/p[2],2);
     double fn = p[5] / p[3], fc = 1.0 - fn;
-    double anu = C_nu_hot * Og / (p[5]+1e-15); 
+    double anu = C_nu_hot * Og / (p[5]+1e-15);
     if(a>=anu) return fn / fc; //cold
     return C_nu_hot * Og / (fc * p[3] * a); //hot
   }
-  
+
   double dYda(double a){
     if(a>=anu_c) return 0;
     return -C_nu_hot * Og_c / (fcb_c * Om_c * a*a);
@@ -396,16 +412,16 @@ class cosmological_parameters{
     return fcb_c*Om_c*(1.0+Y(a))/pow(a,3) + OL_c*E(a) + Og_c/pow(a,4); }
   static double H2_H02(double a, double *p){
     double Og = C_rho_gam * std::pow(p[7]*p[7]/p[2],2);
-    return (p[3]-p[5])*(1.0+Y(a,p))/pow(a,3) + p[6]*E(a,p) + Og/pow(a,4); 
+    return (p[3]-p[5])*(1.0+Y(a,p))/pow(a,3) + p[6]*E(a,p) + Og/pow(a,4);
   }
-  
+
   double H_H0(double a){ return sqrt(H2_H02(a)); }
   static double H_H0(double a, double *p){ return sqrt(H2_H02(a,p)); }
 
   double dlnH_dlna(double a){
-    return 0.5*a/H2_H02(a) 
+    return 0.5*a/H2_H02(a)
       * ( fcb_c*Om_c * (-3.0*(1.0+Y(a))+a*dYda(a)) / std::pow(a,4)
-	  + OL_c*dEda(a) 
+	  + OL_c*dEda(a)
 	  - 4.0*Og_c/std::pow(a,5) );
   }
   static double dlnH_dlna(double a, double *p){
@@ -419,7 +435,7 @@ class cosmological_parameters{
 
   //time-dependent Omega_m
   double Omega_m(double a){ return Om_c / (a*a*a * H2_H02(a)); }
-  static double Omega_m(double a, double *p){ 
+  static double Omega_m(double a, double *p){
     return p[3] / (a*a*a * H2_H02(a,p)); }
 
   //code switches
@@ -469,55 +485,64 @@ class cosmological_parameters{
       //i=0, and read n_k
       aArr[0] = 1.0 / (1.0 + atof(dat.zT[0].c_str()));
       string filename0 = dat.TnuRoot + dat.zT[0] + ".dat";
-      ifstream inputTable0(filename0.c_str(), ios::in);
-      int status0 = 1, j0 = 0;
+      std::ifstream inputTable0(filename0.c_str(), std::ios::in);
+      if(!inputTable0.is_open()) {
+        std::cout << "could not open file " << filename0 << std::endl;
+        std::abort();
+      }
 
-      do{
-	for(int jk=0; jk<nVars; jk++) 
-	  status0 = status0 && (inputTable0 >> temp[jk]);
+      int j0 = 0;
+      std::string line;
+      while(std::getline(inputTable0, line) && j0 <n_k0) {
+        if(line[0] == '#' || line[0] == '\n')
+          continue;
+        std::istringstream linestream(line);
+        for(int jk=0; jk<nVars; jk++) {
+          linestream >> temp[jk];
+        }
 
-	if(status0){
-	  kArr[j0] = temp[i_k];
-	  BetaArr0[j0] = fn * temp[i_dnu] / temp[i_dc];
+        kArr[j0] = temp[i_k];
+        BetaArr0[j0] = fn * temp[i_dnu] / temp[i_dc];
 
-	  if(DEBUG_INTERP)
-	    std::cout << "#Beta_P: "
-                    << filename0
-		      << setw(20) << aArr[0]
-		      << setw(20) << kArr[j0]
-		      << setw(20) << BetaArr0[j0]
-		      << std::endl;
-	}
-      } while(status0 && ++j0<n_k0);
+        if(DEBUG_INTERP)
+          std::cout << "#Beta_P: "
+                  << filename0
+                  << setw(20) << aArr[0]
+                  << setw(20) << kArr[j0]
+                  << setw(20) << BetaArr0[j0]
+                  << std::endl;
+
+        ++j0;
+      }
 
       inputTable0.close();
 
       //initialize Beta array
-      int n_k = j0;
+      const int n_k = j0;
       double *BetaArr = new double[dat.n_z*n_k];
       for(int j=0; j<n_k; j++) BetaArr[j] = BetaArr0[j];
 
       //rest of the z's
-      for(int i=1; i<dat.n_z; i++){ 
-	aArr[i] = 1.0 / (1.0 + atof(dat.zT[i].c_str())); 
+      for(int i=1; i<dat.n_z; i++){
+	aArr[i] = 1.0 / (1.0 + atof(dat.zT[i].c_str()));
 	string filename = dat.TnuRoot + dat.zT[i] + ".dat";
 	ifstream inputTable(filename.c_str(), ios::in);
 	int status = 1, j = 0;
 
 	do{
-	  for(int jk=0; jk<nVars; jk++) 
+	  for(int jk=0; jk<nVars; jk++)
 	    status = status && (inputTable >> temp[jk]);
 
 	  if(status){
 	    if(fdiff(kArr[j],temp[i_k]) > 1e-5){
 	      std::cout << "#Beta_P: ERROR: Initialization failed.  k lists "
-			<< "in transfer function inputs are not the same." 
+			<< "in transfer function inputs are not the same."
 			  << endl;
 	      abort();
 	    }
-	    
+
 	    BetaArr[i*n_k + j] = fn * temp[i_dnu] / temp[i_dc];
-	    
+
 	    if(DEBUG_INTERP)
 	      std::cout << "#Beta_P: "
 			<< filename
@@ -527,10 +552,9 @@ class cosmological_parameters{
 			<< std::endl;
 	  }
 	} while(status && ++j<n_k);
-	
+
 	inputTable.close();
       }
-      
       BetaInterp.initialize(dat.n_z,n_k,aArr,kArr,BetaArr);
       delete [] aArr;
       delete [] BetaArr;
@@ -548,7 +572,7 @@ class cosmological_parameters{
   }
 
   static int D_dD(double z, input_data d, double *D_dDda){
-  
+
     //check bounds
     double k = d.p[10];
     const double a_min=1e-3, a_max=1.1;
@@ -580,7 +604,7 @@ class cosmological_parameters{
       double lnk_min=log(k_min),lnk_max=log(k_max),dlnk=log(k_max/k_min)/n_lnk;
       double lnaTab[n_lna+1], lnkTab[n_lnk+1];
       double *GTab = new double[n_tot];
-      double *dDdaTab = new double[n_tot]; 
+      double *dDdaTab = new double[n_tot];
       for(int i=0; i<=n_lna; i++) lnaTab[i] = lna_min + dlna*i;
       for(int j=0; j<=n_lnk; j++) lnkTab[j] = lnk_min + dlnk*j;
 
@@ -611,7 +635,7 @@ class cosmological_parameters{
       G_lna_lnk.input_arrays(lnaTab,lnkTab,GTab);
       dDda_lna_lnk.input_arrays(lnaTab,lnkTab,dDdaTab);
       double DnormTab[n_lnk+1];
-      for(int j=0; j<=n_lnk; j++) DnormTab[j] = G_lna_lnk(0,lnkTab[j]); 
+      for(int j=0; j<=n_lnk; j++) DnormTab[j] = G_lna_lnk(0,lnkTab[j]);
       Dnorm.input_arrays(lnkTab,DnormTab);
 
       //clean up, and update init
@@ -632,6 +656,46 @@ class cosmological_parameters{
     input_data_init(&d);
     d.p[10] = k;
     return D_dD(z,d,D_dDda);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  //comoving distance
+  int H0chi_eta_init(void){
+
+    double zmin=1e-4, zmax=1e4, dlnz = log(zmax/zmin) / (N_H0CHI-1), zlast=0;
+    input_data dat;
+    input_data_init(&dat);
+
+    for(int i=0; i<N_H0CHI; i++){
+      double z = zmin * exp(dlnz * i), aeta = 1.0/(1.0+z), DH0chi, dum;
+      eta_chi_i[N_H0CHI-1-i] = log(aeta / a_in_inp);
+
+      gsl_integration_workspace *w = gsl_integration_workspace_alloc(1000);
+      gsl_function F;
+      F.function = &H0chi_integrand;
+      F.params = &dat.p;
+      gsl_integration_qag(&F, zlast, z, 0, 1e-4, 1000, 6, w, &DH0chi, &dum);
+
+      zlast = z;
+      H0chi_i[N_H0CHI-1-i] = (i==0 ? DH0chi : DH0chi + H0chi_i[N_H0CHI-i]);
+    }
+
+    //TESTING!!
+    //for(int i=0; i<N_H0CHI; i++){
+    //cout << "#AU_cosmological_parameters:H0chi_eta_init:DEBUG: "
+    //	   << "eta=" << eta_chi_i[i] << ", H0chi=" << H0chi_i[i] << endl;
+    //}
+
+    return 0;
+  }
+
+  double H0chi(double eta){
+    double aeta = a_in_inp * exp(eta), zaeta = 1.0/aeta - 1.0;
+    if(zaeta <= 1e-4) return zaeta;
+    static int init = 0;
+    if(!init){ H0chi_eta_init(); init=1; }
+    static tabulated_function H0chiInterp(N_H0CHI, eta_chi_i, H0chi_i);
+    return H0chiInterp(eta);
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -673,17 +737,17 @@ class cosmological_parameters{
       init = 1;
     }
 
-    if(DEBUG_LINEAR) 
-    cout << "#Transfer end. returning T=" 
+    if(DEBUG_LINEAR)
+    cout << "#Transfer end. returning T="
 	 << exp(log_transfer(log(dat.p[10]))) << endl;
 
     return exp(log_transfer(log(dat.p[10])));
   }
 
   static double Plin(double z, input_data dat0){
-  
+
     if(DEBUG_LINEAR)
-      cout << "#Plin begin. Called with z=" << z 
+      cout << "#Plin begin. Called with z=" << z
 	   << " and k=" << dat0.p[10] << endl;
 
     //initialize: normalize to given sigma_8
@@ -701,20 +765,20 @@ class cosmological_parameters{
       input_data_copy(dat0, &dat);
 
       gsl_integration_workspace *w = gsl_integration_workspace_alloc(ws_size);
-   
+
       gsl_function F;
       F.function = &Plin_integrand_unnorm;
       F.params = &dat;
-  
-      gsl_integration_qag(&F,             //function 
+
+      gsl_integration_qag(&F,             //function
 			  x0,  x1,        //interval
 			  epsabs, epsrel, //error bounds
 			  ws_size,        //size of integration workspace
 			  int_type,       //type of numerical integration used
-			  w, 
-			  &result, 
-			  &error); 
-  
+			  w,
+			  &result,
+			  &error);
+
       gsl_integration_workspace_free(w);
 
       Norm = dat.p[1] * dat.p[1] / result;
@@ -724,12 +788,12 @@ class cosmological_parameters{
 	cout << "#Plin: found Norm=" << Norm << endl;
     }
 
-    double T=Transfer_cb(dat0), DdD[]={0,0}; 
+    double T=Transfer_cb(dat0), DdD[]={0,0};
     double F = 1.0-dat0.p[5]/dat0.p[3] + Beta_P(1.0/(1.0+z),dat0);
     D_dD(z,dat0,DdD);
 
     if( DEBUG_LINEAR)
-    cout << "#Plin end. Returning Plin=" 
+    cout << "#Plin end. Returning Plin="
          << Norm * pow(dat0.p[10],dat0.p[0]) * T*T * DdD[0]*DdD[0] << endl;
 
     return Norm * pow(dat0.p[10],dat0.p[0]) * T*T * F*F * DdD[0]*DdD[0];
@@ -745,7 +809,7 @@ class cosmological_parameters{
   double Plin_nu(double z, input_data dat){
     double fn = dat.p[5]/dat.p[3], fc=1.0-fn;
     if(fn <= 1e-10) return 0;
-    double a=1.0/(1.0+z), B=Beta_P(a,dat), F=fc+B, R=B/fn/F; 
+    double a=1.0/(1.0+z), B=Beta_P(a,dat), F=fc+B, R=B/fn/F;
     return Plin(z,dat) * R*R;
   }
 
@@ -796,7 +860,7 @@ class cosmological_parameters{
       F.params = &dat;
 
       gsl_integration_qag(&F,
-			  x0,  x1, 
+			  x0,  x1,
 			  epsabs, epsrel,
 			  ws_size,
 			  int_type,

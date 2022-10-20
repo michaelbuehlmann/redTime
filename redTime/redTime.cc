@@ -80,7 +80,12 @@ inline double qadd(double x, double y){ return sqrt(sq(x)+sq(y)); }
 //     2nk   <= i < 33nk/16  : P tapered smoothly from P[nk-1] to 0
 //  33nk/16  <= i < 5nk/2    : P=0
 
+#ifdef HIGH_ACCURACY
+const int nk = 512, np = 4*nk, nshift = (np-nk)/2;
+#else
 const int nk = 128, np = 4*nk, nshift = (np-nk)/2;
+#endif
+
 const double kmin=1e-3, kmax=1, lnkmin=log(kmin), lnkmax=log(kmax);
 const double dlnk=(lnkmax-lnkmin)/(nk-1);
 double lnkArr[nk], kArr[nk];
@@ -103,10 +108,10 @@ inline double W_edge(double x){ return x - sin(2.0*M_PI*x)/(2.0*M_PI); }
 
 double WP(double lnk){
   if(lnk <= lnk_pad_winLo) return 0;
-  else if(lnk < lnk_pad_winLi) 
+  else if(lnk < lnk_pad_winLi)
     return W_edge((lnk-lnk_pad_winLo)/(lnk_pad_winLi-lnk_pad_winLo));
   else if(lnk < lnk_pad_winRi) return 1;
-  else if(lnk < lnk_pad_winRo) 
+  else if(lnk < lnk_pad_winRo)
     return W_edge((lnk_pad_winRo-lnk)/(lnk_pad_winRo-lnk_pad_winRi));
   return 0;
 }
@@ -120,13 +125,17 @@ double WC(int n){ //coeffs in GSL halfcomplex notation
 }
 
 //integration tolerances
+#ifdef HIGH_ACCURACY
+const double eabs_P = 1e-15, erel_P = 1e-6; //eta integration for P(k)
+#else
 const double eabs_P = 1e-7,  erel_P = 1e-2; //eta integration for P(k)
+#endif
 const double eabs_A = 1e-15, erel_A = 1e-2; //q,p integration for A(k)
 const double eabs_R = 1e-15, erel_R = 1e-3; //q,p integration for R(k)
 
 //unique components of A_{acd,bef}
 //first 8: 001,bef.  next 6: 111,bef for bef={000, 001, 011, 100, 101, 111}
-//number of unique components (P, I, Q) 
+//number of unique components (P, I, Q)
 const int nUP=3, nUI=14, nELL=3, nUQ=nELL*8, nU=nUP+nUI+nUQ;
 const int aU[nUI] = {0,0,0,0,0,0,0,0, 1,1,1,1,1,1};
 const int cU[nUI] = {0,0,0,0,0,0,0,0, 1,1,1,1,1,1};
@@ -160,11 +169,11 @@ double gamma(int a, int b, int c, double k, double q, double p){
 
   double gam = 0, eps_gam = 1e-6;
   if(a==0){
-    if(b==0 && c==1) gam = (fabs(p/k)>eps_gam 
-			    ? 0.25 * (k*k + p*p - q*q) / (p*p) 
+    if(b==0 && c==1) gam = (fabs(p/k)>eps_gam
+			    ? 0.25 * (k*k + p*p - q*q) / (p*p)
 			    : 0);
-    if(b==1 && c==0) gam = (fabs(q/k)>eps_gam 
-			    ? 0.25 * (k*k + q*q - p*p) / (q*q) 
+    if(b==1 && c==0) gam = (fabs(q/k)>eps_gam
+			    ? 0.25 * (k*k + q*q - p*p) / (q*q)
 			    : 0);
   }
   if(a==1 && b==1 && c==1) {
@@ -186,12 +195,12 @@ double gamma(int a, int b, int c, double k, double q, double p){
 double T_EH(double k){
   static double Omh2 = C.Omega_m()*sq(C.h()), Obh2 = C.Omega_b()*sq(C.h()),
     Onh2 = C.Omega_nu()*sq(C.h()), Tcmb = C.T_cmb_K();
-  static double alpha_G = 1.0  - 0.328*log(431.0*Omh2) * Obh2/Omh2 
+  static double alpha_G = 1.0  - 0.328*log(431.0*Omh2) * Obh2/Omh2
     + 0.38*log(22.3*Omh2) * sq(Obh2/Omh2);
-  static double r_d = 55.234*C.h() / 
+  static double r_d = 55.234*C.h() /
     ( pow(Omh2-Onh2,0.2538) * pow(Obh2,0.1278) * pow(1.0+Onh2,0.3794) );
 
-  double Gamma_eff = C.Omega_m()*C.h() * 
+  double Gamma_eff = C.Omega_m()*C.h() *
     ( alpha_G + (1.0-alpha_G) / (1.0 + pow(0.43*k*r_d,4)) );
   double q_EH = k * sq(Tcmb/2.7) / Gamma_eff;
   double L_EH = log(2.0*M_E + 1.8*q_EH);
@@ -201,7 +210,7 @@ double T_EH(double k){
 
 //power spectrum
 double Pab(int a, int b, double k, const double *lnPk){
-  
+
   if(DEBUG_ALL || DEBUG_TIMERG_INTEGRAND2)
     cout << "#Pab begin. Called with a=" << a << ", b=" << b << ", k=" << k
 	 << ", lnPk[0]=" << lnPk[0] << endl;
@@ -215,8 +224,8 @@ double Pab(int a, int b, double k, const double *lnPk){
 
   //interpolate to find power spectrum value
   double lnP = 1e100, lnk = log(k);
-  int nguess = (lnk-lnkArr[0])/dlnk; 
-  int n=findN(nguess, lnk, lnkArr, nk), 
+  int nguess = (lnk-lnkArr[0])/dlnk;
+  int n=findN(nguess, lnk, lnkArr, nk),
     interp_type = 0; //0=cubic; +/-1=linear; 2=extrap
   if(n==0) interp_type = -1;
   if(n==nk-2) interp_type = 1;
@@ -232,9 +241,9 @@ double Pab(int a, int b, double k, const double *lnPk){
   case(2):
     n = nk-1;
     lnP = lnPk[(a+b)*nk + n] + (C.n_s()-3.0)*(lnk - lnkArr[n]);
-    //lnP = lnPk[(a+b)*nk + n] + C.n_s()*(lnk - lnkArr[n]) 
-      //+ 2.0 * log( T_EH(k) / T_EH(kArr[n]) ); 
-    break;  
+    //lnP = lnPk[(a+b)*nk + n] + C.n_s()*(lnk - lnkArr[n])
+      //+ 2.0 * log( T_EH(k) / T_EH(kArr[n]) );
+    break;
   case(-1): //also extrapolates to the left
     lnP = linInterp(&lnkArr[n], &lnPk[(a+b)*nk + n], lnk);
     break;
@@ -322,7 +331,7 @@ double Pbisj(int i, int j_mu, int m_b, const double *y){
     break;
   case 4:
     Qcomb = (m_b==1) * (
-			-2.0*QQ(0, 1,1,0, i,y) + (4.0/3.0)*QQ(1, 1,1,0, i,y) 
+			-2.0*QQ(0, 1,1,0, i,y) + (4.0/3.0)*QQ(1, 1,1,0, i,y)
 			- 2.0*QQ(0, 0,1,1, i,y) - 2.0*QQ(2, 0,1,1, i,y)
 			)
       + (m_b==0) * (
@@ -342,7 +351,7 @@ double Pbisj(int i, int j_mu, int m_b, const double *y){
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// fast-pt computations of A, R, P_T 
+// fast-pt computations of A, R, P_T
 // (see McEwen, Fang, Hirata, Blazek 1603.04826)
 
 ////////// functions derived from Gamma
@@ -353,7 +362,7 @@ int g_MFHB(double mu, double reKappa, double imKappa, double *g_out){
   gsl_sf_result lnGtop, lnGbot, argTop, argBot;
   gsl_sf_lngamma_complex_e(0.5*(mu+reKappa+1), 0.5*imKappa,  &lnGtop, &argTop);
   gsl_sf_lngamma_complex_e(0.5*(mu-reKappa+1), -0.5*imKappa, &lnGbot, &argBot);
-  
+
   //g_out[] = { |g|, arg(g) }
   g_out[0] = exp(lnGtop.val - lnGbot.val);
   g_out[1] = argTop.val - argBot.val;
@@ -378,7 +387,7 @@ int f_MFHB(int alpha, int beta, int h, double *f){
 
 int g_reg_MFHB(int m, double *g_out){ //regularized version for ell=0, alpha=-2
   int n = (m<=np/2 ? m : m-np);
-  return f_MFHB(nu, 2.0*M_PI*n/(dlnk*np), g_out); 
+  return f_MFHB(nu, 2.0*M_PI*n/(dlnk*np), g_out);
 }
 
 int g_MFHB(int ell, int alpha, int m, double *g){
@@ -417,7 +426,7 @@ int convolve(int N, double *in0, double *in1, double *out){
   return 0;
 }
 
-//convolution for halfcomplex functions; assume arrays already of equal length 
+//convolution for halfcomplex functions; assume arrays already of equal length
 int iconvolve(int N, double *in0, double *in1, double *out){
   ifft(in0,N);
   ifft(in1,N);
@@ -455,7 +464,7 @@ int convolve_bruteforce(int N, double *in0, double *in1, double *out){
 int Jreg_MFHB(const double *Palpha, const double *Pbeta, double *Ji){
   const int alpha=2, beta=-2, ell=0;
 
-  //fft, after multiplying by power law 
+  //fft, after multiplying by power law
   double ca[np], cb[np];
   for(int i=0; i<np; i++){
     double lnk = lnk_pad_min + dlnk*i, k_nnu = exp(-nu*lnk);
@@ -503,7 +512,7 @@ int Jreg_MFHB(const double *Palpha, const double *Pbeta, double *Ji){
   //convolve to get C_h, then IFFT
   double C_h_cmplx[4*np], C_h[2*np], Cf_h[2*np], f[2];
   cconvolve(2*np,cga,cgb,C_h_cmplx);
-  
+
   //recover halfcomplex C_h
   C_h[0] = C_h_cmplx[0];
   C_h[np] = C_h_cmplx[2*np];
@@ -540,7 +549,7 @@ int Jreg_MFHB(const double *Palpha, const double *Pbeta, double *Ji){
 }
 
 //J_{alpha,beta,ell} from McEwen++ 1603.04826
-int J_MFHB(int alpha, int beta, int ell, 
+int J_MFHB(int alpha, int beta, int ell,
            const double *Palpha, const double *Pbeta, double *Ji){
 
   //do we want the regularized version?
@@ -556,7 +565,7 @@ int J_MFHB(int alpha, int beta, int ell,
   }
   fft(ca,np);
   fft(cb,np);
-  for(int i=0; i<np; i++){ 
+  for(int i=0; i<np; i++){
     double win = WC(i);
     ca[i] *= win;
     cb[i] *= win;
@@ -588,7 +597,7 @@ int J_MFHB(int alpha, int beta, int ell,
 
   f_MFHB(alpha,beta,0,f);
   Cftau_h[0] = C_h[0] * f[0] * cos(f[1]);
-  
+
   for(int i=1; i<=np; i++){
     double MC = qadd(C_h[i],C_h[2*np-i]), AC = atan2(C_h[2*np-i],C_h[i]);
     if(i==np){ MC = C_h[np]; AC = 0; }
@@ -615,11 +624,11 @@ int J_MFHB(int alpha, int beta, int ell,
 
 const int tZ = 10; //number of Taylor expansion terms to keep
 const double epsZ = 1e-2; //switch to expansion for r<epsZ or r>1/epsZ
- 
+
 double Zreg_n(int n, double r){
 
   if(n<0) return Zreg_n(-n,1.0/r);
-  
+
   double Z = 0, lnkq = log(fabs((1.0+r)/(1.0-r)));
 
   switch(n){
@@ -637,7 +646,7 @@ double Zreg_n(int n, double r){
   case 2:
     if( r < epsZ){
       Z = 2.0*r;
-      for(int m=0; m<tZ; m++) 
+      for(int m=0; m<tZ; m++)
         Z += 2.0*pow(r,2.0*m+3.0) / ((2.0*m+1.0)*(2.0*m+3.0));
     }
     else if(r > 1.0/epsZ){
@@ -701,7 +710,7 @@ int PZ_reg(int n, const double *Pq, const double *Pk, double *PZn){
   //for s[m]=log(q_m): Fs[m] = Pq(q_m) and Gs[m] = q_m^{-3}*Z(1/q_m)
   double Fs[4*np], Gs[4*np], FGconv[4*np];
   for(int i=0; i<4*np; i++){ Fs[i]=(i<np ? Pq[i] : 0);   Gs[i] = 0; }
-  
+
   for(int i=0; i<np; i++){
 
     //r>1
@@ -745,19 +754,19 @@ const int betan0_n[7]  = {2, 2, 2, 2, 2, 2, 2};
 const int Z_n[7] = {0, 1, -1, 3, -3, 5, -5};
 
 int compute_Aacdbef_Rlabc_PTjm_PMRn_full
-( double eta, const double *y, double *Aacdbef, double Rlabc[nUQ*nk], 
+( double eta, const double *y, double *Aacdbef, double Rlabc[nUQ*nk],
   double PTjm[9][nk], double PMRn[8][nk]){
-  
+
   //initialize to zero; only compute nonzero components
   for(int i=0; i<nUQ*nk; i++) Rlabc[i] = 0;
   for(int i=0; i<64*nk; i++) Aacdbef[i] = 0;
-  for(int i=0; i<nk; i++){ PTjm[0][i] = 0; PTjm[1][i] = 0; PTjm[2][i] = 0; 
-    PTjm[3][i] = 0; PTjm[4][i] = 0; PTjm[5][i] = 0; PTjm[6][i] = 0; 
-    PTjm[7][i] = 0; PTjm[8][i] = 0; 
-    PMRn[0][i] = 0; PMRn[1][i] = 0; PMRn[2][i] = 0; PMRn[3][i] = 0; 
+  for(int i=0; i<nk; i++){ PTjm[0][i] = 0; PTjm[1][i] = 0; PTjm[2][i] = 0;
+    PTjm[3][i] = 0; PTjm[4][i] = 0; PTjm[5][i] = 0; PTjm[6][i] = 0;
+    PTjm[7][i] = 0; PTjm[8][i] = 0;
+    PMRn[0][i] = 0; PMRn[1][i] = 0; PMRn[2][i] = 0; PMRn[3][i] = 0;
     PMRn[4][i] = 0; PMRn[5][i] = 0; PMRn[6][i] = 0; PMRn[7][i] = 0;
   }
-  
+
   //extrapolate power spectra.  P ~ k^{n_s} at low k, Eisenstein-Hu at high k
   double P[3*np];
   for(int i=0; i<np; i++){
@@ -794,233 +803,233 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
 #pragma omp parallel for schedule(dynamic)
     for(int iJ=0; iJ<nJn0; iJ++){
       int n = iJ/9, iabcd = iJ%9, iab = iabcd/3, icd = iabcd%3;
-      J_MFHB(alphan0_n[n], betan0_n[n], elln0_n[n], 
+      J_MFHB(alphan0_n[n], betan0_n[n], elln0_n[n],
 	     &P[iab*np], &P[icd*np], Jn0[iJ]);
     }
   }
 
 #pragma omp parallel for schedule(dynamic)
   for(int i=0; i<nk; i++){
-    double k = exp(lnkmin + dlnk*i), k2 = k*k, 
+    double k = exp(lnkmin + dlnk*i), k2 = k*k,
       pre_A = k / (4.0*M_PI), pre_R = 1.0/(2.0*M_PI*k);
     double Jterms = 0, PZterms = 0;
 
     //A_{acd,bef}
-    Jterms = J[4*9+1][nshift+i]/6 
-      +J[2*9+1][nshift+i]/2 
-      +J[0*9+1][nshift+i]/4 
-      +J[1*9+1][nshift+i]/12 
-      + J[3*9+3][nshift+i]/6 
-      + J[2*9+3][nshift+i]/4 
-      + J[2*9+1][nshift+i]/4 
+    Jterms = J[4*9+1][nshift+i]/6
+      +J[2*9+1][nshift+i]/2
+      +J[0*9+1][nshift+i]/4
+      +J[1*9+1][nshift+i]/12
+      + J[3*9+3][nshift+i]/6
+      + J[2*9+3][nshift+i]/4
+      + J[2*9+1][nshift+i]/4
       + J[0*9+3][nshift+i]/3;
-    PZterms = -PZ[0*9+1][nshift+i]/12.0 
-      + (PZ[4*9+3][nshift+i] 
-	 - PZ[2*9+3][nshift+i] 
-	 + PZ[0*9+3][nshift+i] 
+    PZterms = -PZ[0*9+1][nshift+i]/12.0
+      + (PZ[4*9+3][nshift+i]
+	 - PZ[2*9+3][nshift+i]
+	 + PZ[0*9+3][nshift+i]
 	 + PZ[1*9+3][nshift+i]/2
-         - PZ[3*9+1][nshift+i] 
-	 + PZ[1*9+1][nshift+i] 
-	 + PZ[0*9+1][nshift+i]*3 
+         - PZ[3*9+1][nshift+i]
+	 + PZ[1*9+1][nshift+i]
+	 + PZ[0*9+1][nshift+i]*3
 	 - PZ[2*9+1][nshift+i]/2) / 16;
     Aacdbef[8*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[4*9+2][nshift+i]/6 
-      + J[2*9+2][nshift+i]/2 
-      +J[0*9+2][nshift+i]/4 
+    Jterms = J[4*9+2][nshift+i]/6
+      + J[2*9+2][nshift+i]/2
+      +J[0*9+2][nshift+i]/4
       +J[1*9+2][nshift+i]/12
-      + J[3*9+4][nshift+i]/6 
-      + J[2*9+4][nshift+i]/4 
-      + J[2*9+4][nshift+i]/4 
+      + J[3*9+4][nshift+i]/6
+      + J[2*9+4][nshift+i]/4
+      + J[2*9+4][nshift+i]/4
       + J[0*9+4][nshift+i]/3;
     PZterms = 0;
     Aacdbef[9*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[4*9+4][nshift+i]/6 
-      +J[2*9+4][nshift+i]/2 
-      +J[0*9+4][nshift+i]/4 
+    Jterms = J[4*9+4][nshift+i]/6
+      +J[2*9+4][nshift+i]/2
+      +J[0*9+4][nshift+i]/4
       +J[1*9+4][nshift+i]/12
-      + J[3*9+6][nshift+i]/6 
-      + J[2*9+6][nshift+i]/4 
-      + J[2*9+2][nshift+i]/4 
+      + J[3*9+6][nshift+i]/6
+      + J[2*9+6][nshift+i]/4
+      + J[2*9+2][nshift+i]/4
       + J[0*9+6][nshift+i]/3;
     PZterms = -PZ[0*9+4][nshift+i]/12.0
-      + (PZ[4*9+6][nshift+i] 
-	 - PZ[2*9+6][nshift+i] 
-	 + PZ[0*9+6][nshift+i] 
+      + (PZ[4*9+6][nshift+i]
+	 - PZ[2*9+6][nshift+i]
+	 + PZ[0*9+6][nshift+i]
 	 + PZ[1*9+6][nshift+i]/2
-         - PZ[3*9+4][nshift+i] 
-	 + PZ[1*9+4][nshift+i] 
-	 + PZ[0*9+4][nshift+i]*3 
+         - PZ[3*9+4][nshift+i]
+	 + PZ[1*9+4][nshift+i]
+	 + PZ[0*9+4][nshift+i]*3
 	 - PZ[2*9+4][nshift+i]/2) / 16;
     Aacdbef[10*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[4*9+5][nshift+i]/6 
-      +J[2*9+5][nshift+i]/2 
-      +J[0*9+5][nshift+i]/4 
+    Jterms = J[4*9+5][nshift+i]/6
+      +J[2*9+5][nshift+i]/2
+      +J[0*9+5][nshift+i]/4
       +J[1*9+5][nshift+i]/12
-      + J[3*9+7][nshift+i]/6 
-      + J[2*9+7][nshift+i]/4 
-      + J[2*9+5][nshift+i]/4 
+      + J[3*9+7][nshift+i]/6
+      + J[2*9+7][nshift+i]/4
+      + J[2*9+5][nshift+i]/4
       + J[0*9+7][nshift+i]/3;
     PZterms = 0;
     Aacdbef[11*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[5*9+4][nshift+i]/5 
-      + J[3*9+4][nshift+i]/2 
-      + J[4*9+4][nshift+i]/6 
+    Jterms = J[5*9+4][nshift+i]/5
+      + J[3*9+4][nshift+i]/2
+      + J[4*9+4][nshift+i]/6
       + 0.55*J[2*9+4][nshift+i]
-      + J[2*9+4][nshift+i]/4 
-      +J[0*9+4][nshift+i]/4 
+      + J[2*9+4][nshift+i]/4
+      +J[0*9+4][nshift+i]/4
       + J[1*9+4][nshift+i]/12;
     PZterms = -PZ[0*9+2][nshift+i]/12.0
-      + (PZ[4*9+4][nshift+i] 
-	 - PZ[2*9+4][nshift+i] 
-	 + PZ[0*9+4][nshift+i] 
+      + (PZ[4*9+4][nshift+i]
+	 - PZ[2*9+4][nshift+i]
+	 + PZ[0*9+4][nshift+i]
 	 + PZ[1*9+4][nshift+i]/2
-         - PZ[3*9+2][nshift+i] 
-	 + PZ[1*9+2][nshift+i] 
-	 + PZ[0*9+2][nshift+i]*3 
+         - PZ[3*9+2][nshift+i]
+	 + PZ[1*9+2][nshift+i]
+	 + PZ[0*9+2][nshift+i]*3
 	 - PZ[2*9+2][nshift+i]/2) / 16;
     Aacdbef[12*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[5*9+5][nshift+i]/5 
-      + J[3*9+5][nshift+i]/2 
-      + J[4*9+5][nshift+i]/6 
+    Jterms = J[5*9+5][nshift+i]/5
+      + J[3*9+5][nshift+i]/2
+      + J[4*9+5][nshift+i]/6
       + 0.55*J[2*9+5][nshift+i]
-      + J[2*9+7][nshift+i]/4 
-      +J[0*9+5][nshift+i]/4 
+      + J[2*9+7][nshift+i]/4
+      +J[0*9+5][nshift+i]/4
       + J[1*9+5][nshift+i]/12;
     PZterms = 0;
     Aacdbef[13*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[5*9+7][nshift+i]/5 
-      + J[3*9+7][nshift+i]/2 
-      + J[4*9+7][nshift+i]/6 
+    Jterms = J[5*9+7][nshift+i]/5
+      + J[3*9+7][nshift+i]/2
+      + J[4*9+7][nshift+i]/6
       + 0.55*J[2*9+7][nshift+i]
-      + J[2*9+5][nshift+i]/4 
-      +J[0*9+7][nshift+i]/4 
+      + J[2*9+5][nshift+i]/4
+      +J[0*9+7][nshift+i]/4
       + J[1*9+7][nshift+i]/12;
     PZterms = -PZ[0*9+5][nshift+i]/12.0
-      + (PZ[4*9+7][nshift+i] 
-	 - PZ[2*9+7][nshift+i] 
-	 + PZ[0*9+7][nshift+i] 
+      + (PZ[4*9+7][nshift+i]
+	 - PZ[2*9+7][nshift+i]
+	 + PZ[0*9+7][nshift+i]
 	 + PZ[1*9+7][nshift+i]/2
-         - PZ[3*9+5][nshift+i] 
-	 + PZ[1*9+5][nshift+i] 
-	 + PZ[0*9+5][nshift+i]*3 
+         - PZ[3*9+5][nshift+i]
+	 + PZ[1*9+5][nshift+i]
+	 + PZ[0*9+5][nshift+i]*3
 	 - PZ[2*9+5][nshift+i]/2) / 16;
     Aacdbef[14*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[5*9+8][nshift+i]/5 
-      + J[3*9+8][nshift+i]/2 
-      + J[4*9+8][nshift+i]/6 
+    Jterms = J[5*9+8][nshift+i]/5
+      + J[3*9+8][nshift+i]/2
+      + J[4*9+8][nshift+i]/6
       + 0.55*J[2*9+8][nshift+i]
-      + J[2*9+8][nshift+i]/4 
-      +J[0*9+8][nshift+i]/4 
+      + J[2*9+8][nshift+i]/4
+      +J[0*9+8][nshift+i]/4
       + J[1*9+8][nshift+i]/12;
     PZterms = 0;
     Aacdbef[15*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = (J[5*9+1][nshift+i]/5 
-	      + J[3*9+1][nshift+i]/2 
-	      + J[4*9+1][nshift+i]/6 
+    Jterms = (J[5*9+1][nshift+i]/5
+	      + J[3*9+1][nshift+i]/2
+	      + J[4*9+1][nshift+i]/6
 	      + 0.55*J[2*9+1][nshift+i]
-              + J[2*9+3][nshift+i]/4 
-	      + J[0*9+1][nshift+i]/4 
+              + J[2*9+3][nshift+i]/4
+	      + J[0*9+1][nshift+i]/4
 	      + J[1*9+1][nshift+i]/12) * 2.0;
-    PZterms = (-PZ[4*9+1][nshift+i]*2 
-	       + PZ[2*9+1][nshift+i]*2 
-	       - PZ[0*9+1][nshift+i]*2 
+    PZterms = (-PZ[4*9+1][nshift+i]*2
+	       + PZ[2*9+1][nshift+i]*2
+	       - PZ[0*9+1][nshift+i]*2
 	       - PZ[1*9+1][nshift+i]
-               + PZ[6*9+3][nshift+i]*2 
-	       - PZ[4*9+3][nshift+i]*4 
+               + PZ[6*9+3][nshift+i]*2
+	       - PZ[4*9+3][nshift+i]*4
 	       + PZ[2*9+3][nshift+i]) / 16.0;
     Aacdbef[56*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[5*9+2][nshift+i]/5 
-      + J[3*9+2][nshift+i]/2 
-      + J[4*9+2][nshift+i]/6 
+    Jterms = J[5*9+2][nshift+i]/5
+      + J[3*9+2][nshift+i]/2
+      + J[4*9+2][nshift+i]/6
       + 0.55*J[2*9+2][nshift+i]
-      + J[2*9+6][nshift+i]/4 
-      + J[0*9+2][nshift+i]/4 
+      + J[2*9+6][nshift+i]/4
+      + J[0*9+2][nshift+i]/4
       + J[1*9+2][nshift+i]/12
-      + J[5*9+4][nshift+i]/5 
-      + J[3*9+4][nshift+i]/2 
-      + J[4*9+4][nshift+i]/6 
+      + J[5*9+4][nshift+i]/5
+      + J[3*9+4][nshift+i]/2
+      + J[4*9+4][nshift+i]/6
       + 0.55*J[2*9+4][nshift+i]
-      + J[2*9+4][nshift+i]/4 
-      + J[0*9+4][nshift+i]/4 
+      + J[2*9+4][nshift+i]/4
+      + J[0*9+4][nshift+i]/4
       + J[1*9+4][nshift+i]/12;
-    PZterms = (-PZ[4*9+4][nshift+i] 
-	       + PZ[2*9+4][nshift+i] 
-	       - PZ[0*9+4][nshift+i] 
+    PZterms = (-PZ[4*9+4][nshift+i]
+	       + PZ[2*9+4][nshift+i]
+	       - PZ[0*9+4][nshift+i]
 	       - PZ[1*9+4][nshift+i]/2
-               + PZ[6*9+6][nshift+i] 
-	       - PZ[4*9+6][nshift+i]*2 
+               + PZ[6*9+6][nshift+i]
+	       - PZ[4*9+6][nshift+i]*2
 	       + PZ[2*9+6][nshift+i]/2) / 16.0;
     Aacdbef[57*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = (J[5*9+5][nshift+i]/5 
-	      + J[3*9+5][nshift+i]/2 
-	      + J[4*9+5][nshift+i]/6 
+    Jterms = (J[5*9+5][nshift+i]/5
+	      + J[3*9+5][nshift+i]/2
+	      + J[4*9+5][nshift+i]/6
 	      + 0.55*J[2*9+5][nshift+i]
-              + J[2*9+7][nshift+i]/4 
-	      + J[0*9+5][nshift+i]/4 
+              + J[2*9+7][nshift+i]/4
+	      + J[0*9+5][nshift+i]/4
 	      + J[1*9+5][nshift+i]/12) * 2.0;
     PZterms = 0;
     Aacdbef[59*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[6*9+4][nshift+i]*8/35 
-      + 0.4*J[5*9+4][nshift+i] 
+    Jterms = J[6*9+4][nshift+i]*8/35
       + 0.4*J[5*9+4][nshift+i]
-      + J[3*9+4][nshift+i]*19/21 
-      + J[4*9+4][nshift+i]/6 
-      + J[4*9+4][nshift+i]/6 
+      + 0.4*J[5*9+4][nshift+i]
+      + J[3*9+4][nshift+i]*19/21
+      + J[4*9+4][nshift+i]/6
+      + J[4*9+4][nshift+i]/6
       + 0.6*J[2*9+4][nshift+i]
-      + 0.6*J[2*9+4][nshift+i] 
-      + J[0*9+4][nshift+i]*11/30 
-      + J[1*9+4][nshift+i]/12 
+      + 0.6*J[2*9+4][nshift+i]
+      + J[0*9+4][nshift+i]*11/30
+      + J[1*9+4][nshift+i]/12
       + J[1*9+4][nshift+i]/12;
-    PZterms = (-PZ[4*9+2][nshift+i]*2 
-	       + PZ[2*9+2][nshift+i]*2 
-	       - PZ[0*9+2][nshift+i]*2 
+    PZterms = (-PZ[4*9+2][nshift+i]*2
+	       + PZ[2*9+2][nshift+i]*2
+	       - PZ[0*9+2][nshift+i]*2
 	       - PZ[1*9+2][nshift+i]
-               + PZ[6*9+4][nshift+i]*2 
-	       - PZ[4*9+4][nshift+i]*4 
+               + PZ[6*9+4][nshift+i]*2
+	       - PZ[4*9+4][nshift+i]*4
 	       + PZ[2*9+4][nshift+i]) / 16.0;
     Aacdbef[60*nk+i] = pre_A * (Jterms + PZterms);
 
-    Jterms = J[6*9+5][nshift+i]*8/35 
-      + 0.4*J[5*9+5][nshift+i] 
+    Jterms = J[6*9+5][nshift+i]*8/35
+      + 0.4*J[5*9+5][nshift+i]
       + 0.4*J[5*9+7][nshift+i]
-      + J[3*9+5][nshift+i]*19/21 
-      + J[4*9+5][nshift+i]/6 
-      + J[4*9+7][nshift+i]/6 
+      + J[3*9+5][nshift+i]*19/21
+      + J[4*9+5][nshift+i]/6
+      + J[4*9+7][nshift+i]/6
       + 0.6*J[2*9+5][nshift+i]
-      + 0.6*J[2*9+7][nshift+i] 
-      + J[0*9+5][nshift+i]*11/30 
-      + J[1*9+5][nshift+i]/12 
+      + 0.6*J[2*9+7][nshift+i]
+      + J[0*9+5][nshift+i]*11/30
+      + J[1*9+5][nshift+i]/12
       + J[1*9+7][nshift+i]/12;
-    PZterms = (-PZ[4*9+5][nshift+i] 
-	       + PZ[2*9+5][nshift+i] 
-	       - PZ[0*9+5][nshift+i] 
+    PZterms = (-PZ[4*9+5][nshift+i]
+	       + PZ[2*9+5][nshift+i]
+	       - PZ[0*9+5][nshift+i]
 	       - PZ[1*9+5][nshift+i]/2
-               + PZ[6*9+7][nshift+i] 
-	       - PZ[4*9+7][nshift+i]*2 
+               + PZ[6*9+7][nshift+i]
+	       - PZ[4*9+7][nshift+i]*2
 	       + PZ[2*9+7][nshift+i]/2) / 16.0;
     Aacdbef[61*nk+i] = pre_A * (Jterms + PZterms);
-    
-    Jterms = J[6*9+8][nshift+i]*8/35 
-      + 0.4*J[5*9+8][nshift+i] 
+
+    Jterms = J[6*9+8][nshift+i]*8/35
       + 0.4*J[5*9+8][nshift+i]
-      + J[3*9+8][nshift+i]*19/21 
-      + J[4*9+8][nshift+i]/6 
-      + J[4*9+8][nshift+i]/6 
+      + 0.4*J[5*9+8][nshift+i]
+      + J[3*9+8][nshift+i]*19/21
+      + J[4*9+8][nshift+i]/6
+      + J[4*9+8][nshift+i]/6
       + 0.6*J[2*9+8][nshift+i]
-      + 0.6*J[2*9+8][nshift+i] 
-      + J[0*9+8][nshift+i]*11/30 
-      + J[1*9+8][nshift+i]/12 
+      + 0.6*J[2*9+8][nshift+i]
+      + J[0*9+8][nshift+i]*11/30
+      + J[1*9+8][nshift+i]/12
       + J[1*9+8][nshift+i]/12;
     PZterms = 0;
     Aacdbef[63*nk+i] = pre_A * (Jterms + PZterms);
@@ -1038,7 +1047,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
     Aacdbef[62*nk+i] = Aacdbef[61*nk+i];
 
 
-    //R^{ell}_{abc} 
+    //R^{ell}_{abc}
     for(int a=0; a<2; a++){
       for(int b=0; b<2; b++){
         for(int c=0; c<2; c++){
@@ -1069,7 +1078,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
               - (1.0/3.0) * J[9*1 + 3*c + b + 4][nshift+i];
             Rlabc[(8*0+4*a+2*b+c)*nk + i] = pre_R * Jterms;
           }
-          
+
           if(b==0){
             PZterms = -(13.0/12.0) * PZ[9*0 + 3*c + a + 1][nshift+i]
               + (5.0/16.0) * PZ[9*2 + 3*c + a + 1][nshift+i]
@@ -1087,7 +1096,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
             PZterms = -(1.0/3.0) * PZ[9*0 + 3*c + a + 4][nshift+i];
             Rlabc[(8*0+4*a+2*b+c)*nk + i] += pre_R * PZterms;
           }
-          
+
           if(c==0){
             PZterms = 0.125 * PZ[9*6 + 3*b + a + 3][nshift+i]
               - 0.375 * PZ[9*4 + 3*b + a + 3][nshift+i]
@@ -1104,7 +1113,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
             PZterms = (1.0/3.0) * PZ[9*0 + 3*b + a + 4][nshift+i];
             Rlabc[(8*0+4*a+2*b+c)*nk + i] += pre_R * PZterms;
           }
-          
+
           //ell = 2
           if(a==0){
             Jterms = 0.6 * J[9*5 + 3*b + c + 1][nshift+i]
@@ -1188,7 +1197,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
               + (1.0/3.0) * J[9*0 + 3*b + c + 4][nshift+i];
             Rlabc[(8*2+4*a+2*b+c)*nk + i] = pre_R * Jterms;
           }
-          
+
           if(b==0){
             PZterms = (35.0/32.0) * PZ[9*0 + 3*c + a + 1][nshift+i]
               + (5.0/32.0) * PZ[9*5 + 3*c + a + 1][nshift+i]
@@ -1288,7 +1297,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
       - (2.0/3.0) * J[9*3 + 3*1 + 0 + 4][nshift+i]
       + 2.0 * J[9*2 + 3*1 + 0 + 4][nshift+i]
       + (14.0/3.0) * J[9*0 + 3*1 + 0 + 4][nshift+i];
-    
+
     PTjm[7][i] = ( (15.0/11.0) * Jn0[9*6 + 3*1 + 1 + 4][nshift+i]
                    - (81.0/11.0) * Jn0[9*5 + 3*1 + 1 + 4][nshift+i]
                    + 15.0 * Jn0[9*4 + 3*1 + 1 + 4][nshift+i]
@@ -1320,7 +1329,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
       + (63.0/10.0) * J[9*0 + 3*1 + 1 + 4][nshift+i];
 
 
-    //P_{MR,n}(k) are the bias correction integrals computed in 
+    //P_{MR,n}(k) are the bias correction integrals computed in
     //McDonald and Roy JCAP08 (2009) 020 [arXiv:0902.0991].
     //Power spectrum indices a=0, b=0 used for all terms.
     //  n=0: delta^2,delta     n=4: delta^2,delta^2
@@ -1328,7 +1337,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
     //  n=2: s^2,delta         n=6: s^2,s^2
     //  n=3: s^2,theta         n=7: 3nl
     const int nloMR = nshift - nk/2; //k_nloMR used for low-k limit
-    PMRn[0][i] = (4.0/21.0) * J[9*3][nshift+i]  
+    PMRn[0][i] = (4.0/21.0) * J[9*3][nshift+i]
       + J[9*2][nshift+i]
       + (17.0/21.0) * J[9*0][nshift+i];
     PMRn[1][i] = (8.0/21.0) * J[9*3][nshift+i]
@@ -1350,7 +1359,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
       + (4.0/63.0) * J[9*3][nshift+i]
       + (2.0/45.0) * J[9*0][nshift+i]
       - (2.0/9.0) * J[9*0][nloMR];
-    PMRn[7][i] = 0.5 * ( 
+    PMRn[7][i] = 0.5 * (
 			(-15.0/128.0) * PZ[9*6][nshift+i]
 			+ (15.0/32.0) * PZ[9*4][nshift+i]
 			- (15.0/128.0) * PZ[9*3][nshift+i]
@@ -1359,7 +1368,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
 			+ (55.0/128.0) * PZ[9*0][nshift+i]
 			 );
   }
-  
+
   return 0;
 }
 
@@ -1367,14 +1376,14 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full
 const double z1l = 10.0, eta_z1l = log((1.0+C.z_in())/(1.0+z1l));
 
 int compute_Aacdbef_Rlabc_PTjm_PMRn_1loop
-( double eta, const double *y, 
-  double *Aacdbef, double Rlabc[nUQ*nk], 
+( double eta, const double *y,
+  double *Aacdbef, double Rlabc[nUQ*nk],
   double PTjm[9][nk], double PMRn[8][nk]){
-  
+
   static int init = 0;
-  static double A_z1l[64*nk], R_z1l[nUQ*nk], PT_z1l[9][nk], PMR_z1l[8][nk], 
+  static double A_z1l[64*nk], R_z1l[nUQ*nk], PT_z1l[9][nk], PMR_z1l[8][nk],
     D_z1l[nk];
-  
+
   if(!init){
 
     //construct linear power spectrum at redshift z1l
@@ -1389,7 +1398,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_1loop
     }
 
     //compute z=z1l values
-    compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta_z1l, y_z1l, 
+    compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta_z1l, y_z1l,
 					 A_z1l, R_z1l, PT_z1l, PMR_z1l);
 
     init = 1;
@@ -1402,7 +1411,7 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_1loop
     double fz = Dz[1] / (Dz[0] * (1.0+z));
     double pre = pow(Dz[0]/D_z1l[i],4) * exp(-4.0*eta);
 
-    for(int j=0; j<64; j++){ 
+    for(int j=0; j<64; j++){
       int bef = j%8, b=bef/4, e=(bef%4)/2, f=bef%2;
       Aacdbef[j*nk+i] = pre * pow(fz,b+e+f+1) * A_z1l[j*nk+i];
     }
@@ -1431,7 +1440,7 @@ int compute_Aacdbef_Rlabc_PTj
   double *PT2, double *PT4, double *PT6, double *PT8){
 
   double PTjm[9][nk], PMRn[8][nk];
-  if(C.SWITCH_1LOOP()) 
+  if(C.SWITCH_1LOOP())
     compute_Aacdbef_Rlabc_PTjm_PMRn_1loop(eta,y,Aacdbef,Rlabc,PTjm,PMRn);
   else compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta,y,Aacdbef,Rlabc,PTjm,PMRn);
 
@@ -1465,7 +1474,7 @@ int compute_Aacdbef_Rlabc_PTj_full
   return 0;
 }
 
-//frontends for parallel computation of A_{acd,bef}, R^\ell_{abc}, 
+//frontends for parallel computation of A_{acd,bef}, R^\ell_{abc},
 //P_{T,jm}, P_{MR,n}.  Figure out which function to use.
 int compute_Aacdbef_Rlabc_PTjm_PMRn
 ( double eta, const double *y,
@@ -1519,14 +1528,14 @@ int derivatives_LIN(double eta, const double y[], double dy[], void *params){
 #pragma omp parallel for schedule(dynamic)
   for(int i=0; i<nk; i++){
     double dPab_i[3]={0,0,0}, Pab_i[3]={exp(y[i]),exp(y[nk+i]),exp(y[2*nk+i])};
-    for(int c=0; c<2; c++){ 
-      dPab_i[0] -= Omega(0,c,A,kArr[i])*Pab_i[c] 
+    for(int c=0; c<2; c++){
+      dPab_i[0] -= Omega(0,c,A,kArr[i])*Pab_i[c]
 	+ Omega(0,c,A,kArr[i])*Pab_i[c]; //00
-      dPab_i[1] -= Omega(0,c,A,kArr[i])*Pab_i[c+1] 
+      dPab_i[1] -= Omega(0,c,A,kArr[i])*Pab_i[c+1]
 	+ Omega(1,c,A,kArr[i])*Pab_i[c]; //01=10
-      dPab_i[2] -= Omega(1,c,A,kArr[i])*Pab_i[c+1] 
+      dPab_i[2] -= Omega(1,c,A,kArr[i])*Pab_i[c+1]
 	+ Omega(1,c,A,kArr[i])*Pab_i[c+1]; //11
-    }  
+    }
     dy[i] = dPab_i[0] / Pab_i[0];
     dy[nk+i] = dPab_i[1] / Pab_i[1];
     dy[2*nk+i] = dPab_i[2] / Pab_i[2];
@@ -1541,14 +1550,14 @@ int derivatives(double eta, const double y[], double dy[], void *params){
   //  y[nk..2*nk-1] is ln(P_10) = ln(P_01) from kArr[0] to kArr[nk-1]
   //  y[2*nk..3*nk-1] =s ln(P_11) from kArr[0] to kArr[nk-1]
   //  y[(3+nI)*nk...(4+nI)*nk-1] is the 14 unique components of I
-  //                             from kArr[0] to kArr[nk-1] 
+  //                             from kArr[0] to kArr[nk-1]
 
   if(DEBUG_ALL || DEBUG_INTEGRATION)
-    cout << "#derivatives: start. a_in=" << C.a_in() 
+    cout << "#derivatives: start. a_in=" << C.a_in()
 	 << ", a=" << C.a_in()*exp(eta) << ", eta=" << eta << endl;
 
   //scale factor and red shift; note A=scale factor, a is an iteger
-  double A = C.a_in()*exp(eta), z = 1.0/A - 1.0; 
+  double A = C.a_in()*exp(eta), z = 1.0/A - 1.0;
 
   //initialize
   for(int i=0; i<nU*nk; i++) dy[i]=0;
@@ -1568,14 +1577,14 @@ int derivatives(double eta, const double y[], double dy[], void *params){
     //0..3*nk-1: derivatives of ln(P)
     double dPab_i[3]={0,0,0}, Pab_i[3]={exp(y[i]),exp(y[nk+i]),exp(y[2*nk+i])};
     for(int c=0; c<2; c++){
-      dPab_i[0] -= Omega(0,c,A,kArr[i])*Pab_i[c] 
+      dPab_i[0] -= Omega(0,c,A,kArr[i])*Pab_i[c]
 	+ Omega(0,c,A,kArr[i])*Pab_i[c]; //00
-      dPab_i[1] -= Omega(0,c,A,kArr[i])*Pab_i[c+1] 
+      dPab_i[1] -= Omega(0,c,A,kArr[i])*Pab_i[c+1]
 	+ Omega(1,c,A,kArr[i])*Pab_i[c]; //01=10
-      dPab_i[2] -= Omega(1,c,A,kArr[i])*Pab_i[c+1] 
+      dPab_i[2] -= Omega(1,c,A,kArr[i])*Pab_i[c+1]
 	+ Omega(1,c,A,kArr[i])*Pab_i[c+1]; //11
 
-      if(C.SWITCH_NONLINEAR()){                                                 
+      if(C.SWITCH_NONLINEAR()){
 	for(int d=0; d<2; d++){
 	  int a=0, b=0, J0 = nAI(a,c,d,b,c,d), J1 = nAI(b,c,d,a,c,d);
 	  dPab_i[0] += exp(eta)*4.0*M_PI/kArr[i]
@@ -1588,7 +1597,7 @@ int derivatives(double eta, const double y[], double dy[], void *params){
 	  a=1; b=1; J0 = nAI(a,c,d,b,c,d); J1 = nAI(b,c,d,a,c,d);
           dPab_i[2] += exp(eta)*4.0*M_PI/kArr[i]
             * (Iacdbef[J0*nk+i] + Iacdbef[J1*nk+i]);
-	}                                                         
+	}
       }
     }
 
@@ -1604,7 +1613,7 @@ int derivatives(double eta, const double y[], double dy[], void *params){
     //	   << dPab_i[2] / Pab_i[2] << " to " << dy[2*nk+i]
     //	   << " in order to fix instability in P_11 evolution."
     //	   << endl;
-    
+
     if(C.SWITCH_NONLINEAR()){
 
       //3*nk to 17*nk-1: derivatives of I
@@ -1612,7 +1621,7 @@ int derivatives(double eta, const double y[], double dy[], void *params){
 	dy[(j+nUP)*nk+i] = 2.0*exp(eta)*Aacdbef[JU[j]*nk + i];
 
 	for(int g=0; g<2; g++){
-	  int J1=nAI(aU[j],cU[j],dU[j],g,eU[j],fU[j]), 
+	  int J1=nAI(aU[j],cU[j],dU[j],g,eU[j],fU[j]),
 	    J2=nAI(aU[j],cU[j],dU[j],bU[j],g,fU[j]),
 	    J3=nAI(aU[j],cU[j],dU[j],bU[j],eU[j],g);
 	  dy[(j+nUP)*nk+i] += -Omega(bU[j],g,A,kArr[i])*Iacdbef[J1*nk+i]
@@ -1627,16 +1636,16 @@ int derivatives(double eta, const double y[], double dy[], void *params){
 	  double Qlabc_i[8];
 	  for(int j=0; j<8; j++){
 	    Qlabc_i[j] = y[(nUP + nUI + num_ell*8 + j)*nk + i];
-	    dy[(nUP + nUI + num_ell*8 + j)*nk+i] = 
+	    dy[(nUP + nUI + num_ell*8 + j)*nk+i] =
 	      2.0*exp(eta)*Rlabc[(num_ell*8+j)*nk+i];
 	  }
-	  
+
 	  for(int a=0; a<2; a++){
 	    for(int b=0; b<2; b++){
 	      for(int c=0; c<2; c++){
 		int j = 4*a + 2*b + c;
 		for(int d=0; d<2; d++){
-		  dy[(nUP + nUI + num_ell*8 + j)*nk+i] += 
+		  dy[(nUP + nUI + num_ell*8 + j)*nk+i] +=
 		    -Omega(a,d,A,kArr[i])*Qlabc_i[4*d+2*b+c]
 		    - Omega(b,d,A,kArr[i])*Qlabc_i[4*a+2*d+c]
 		    - Omega(c,d,A,kArr[i])*Qlabc_i[4*a+2*b+d];
@@ -1644,7 +1653,7 @@ int derivatives(double eta, const double y[], double dy[], void *params){
 	      }
 	    }
 	  }
-	}	
+	}
       }
     }
 
@@ -1682,7 +1691,7 @@ int main(int argn, char *args[]){
 
     //power spectrum
     double Pin_i = C.Plin_cb(C.z_in(),kArr[i]);
-    y[i] = log(Pin_i); 
+    y[i] = log(Pin_i);
     y[nk+i] = log(Pin_i*f_in);
     y[2*nk+i] = log(Pin_i*f_in*f_in);
   }
@@ -1696,14 +1705,14 @@ int main(int argn, char *args[]){
   gsl_odeiv_step * s = gsl_odeiv_step_alloc(T, N_EQ);
   gsl_odeiv_control * c = gsl_odeiv_control_y_new(eps_abs, eps_rel);
   gsl_odeiv_evolve * e = gsl_odeiv_evolve_alloc(N_EQ);
-  double mu = 0; 
+  double mu = 0;
   gsl_odeiv_system sys = {derivatives, dummy_jacobian, N_EQ, &mu};
 
   double eta =C.eta_in(), eta_fin =log(1.0/C.a_in()), deta =1e-2*(eta_fin-eta);
 
   //output initial conditions
   cout << setprecision(PREC)
-       << "###main: eta_fin = " << eta_fin 
+       << "###main: eta_fin = " << eta_fin
        << ", sigmaV2(z=0) = " << C.sigmaV2(0) << endl;
   //cout << "## "
   //     << setw(17) << exp(eta)*C.a_in()
@@ -1717,38 +1726,38 @@ int main(int argn, char *args[]){
   for(int i_eta=0; i_eta<C.n_eta(); i_eta++){
     while((C.etasteps(i_eta)-eta)*deta > 0){
 
-      status = gsl_odeiv_evolve_apply(e, c, s, &sys, 
+      status = gsl_odeiv_evolve_apply(e, c, s, &sys,
 				      &eta, C.etasteps(i_eta), &deta, y);
-      
+
       //output at each time step
-      //cout << setprecision(PREC) 
+      //cout << setprecision(PREC)
       //     << "## "
       //     << setw(17) << exp(eta)*C.a_in()
       //     << setw(20) << exp(y[0])
       //     << setw(20) << exp(y[nk+0])
       //     << setw(20) << exp(y[2*nk+0])
       //     << endl;
-      
+
       if(status != GSL_SUCCESS) break;
     }
-    if(status != GSL_SUCCESS) 
+    if(status != GSL_SUCCESS)
       cout << "#WARNING: integrator failed, status = " << status << endl;
 
     //output power spectra
-    double a_ain=C.asteps(i_eta)/C.a_in(), a2_ain2=a_ain*a_ain, 
+    double a_ain=C.asteps(i_eta)/C.a_in(), a2_ain2=a_ain*a_ain,
       a3_ain3=a2_ain2*a_ain, a4_ain4=a2_ain2*a2_ain2, D_eta[2];
     double sV2_eta = C.sigmaV2(C.zsteps(i_eta));
     double H_eta = C.H_H0(C.asteps(i_eta)) * H0h;
     cout << "### main: output at eta=" << eta
 	 << ", a=" << C.asteps(i_eta) << ", z=" << C.zsteps(i_eta)
-	 << ", H=" << H_eta  
+	 << ", H=" << H_eta
 	 << ", sigma_v^2=" << sV2_eta << endl;
 
     //use linear power spectrum at this redshift for 1-loop outputs
     double Aacdbef[64*nk], Rlabc[nUQ*nk], PTjm[9][nk], PMRn[8][nk], y_lin[3*nk],
       PT2[nk], PT4[nk], PT6[nk], PT8[nk];
     /**  //do we want to use linear or non-linear P for P_T, P_MR?
-    if(C.SWITCH_NONLINEAR() && C.SWITCH_1LOOP() && C.PRINTRSD()){ 
+    if(C.SWITCH_NONLINEAR() && C.SWITCH_1LOOP() && C.PRINTRSD()){
       for(int i_lin = 0; i_lin<nk; i_lin++){
 	double D_lin[2];
 	C.D_dD(C.zsteps(i_eta),kArr[i_lin],D_lin);
@@ -1757,7 +1766,7 @@ int main(int argn, char *args[]){
 	y_lin[i_lin] = log(P_lin_i);
 	y_lin[nk + i_lin] = log(P_lin_i * f_lin_i);
 	y_lin[2*nk + i_lin] = log(P_lin_i * f_lin_i*f_lin_i);
-	
+
       }
       if(PRINTBIAS)
 	compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta,y_lin,Aacdbef,Rlabc,PTjm,PMRn);
@@ -1767,7 +1776,7 @@ int main(int argn, char *args[]){
     else if( C.SWITCH_NONLINEAR() && C.PRINTRSD()){
       if(PRINTBIAS)
 	compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta,y,Aacdbef,Rlabc,PTjm,PMRn);
-      else 
+      else
 	compute_Aacdbef_Rlabc_PTj_full(eta,y,Aacdbef,Rlabc,PT2,PT4,PT6,PT8);
     }
     /**/
@@ -1778,7 +1787,7 @@ int main(int argn, char *args[]){
         compute_Aacdbef_Rlabc_PTj_full(eta,y,Aacdbef,Rlabc,PT2,PT4,PT6,PT8);
     }
     /**/
-      
+
     for(int i=0; i<nk; i++){
 
       //compute k-dep growth and Beta_p
@@ -1786,9 +1795,9 @@ int main(int argn, char *args[]){
       C.D_dD(C.zsteps(i_eta),kArr[i],D);
       double aLeft=C.asteps(i_eta)*0.999, aRight=min(1.0,C.asteps(i_eta)*1.001);
       double B_eta=C.Beta_P(C.asteps(i_eta),kArr[i]);
-      double B1=C.Beta_P(1,kArr[i]), B_left=C.Beta_P(aLeft,kArr[i]), 
+      double B1=C.Beta_P(1,kArr[i]), B_left=C.Beta_P(aLeft,kArr[i]),
 	B_right=C.Beta_P(aRight,kArr[i]),
-	dlnB_dlna = (C.f_nu() < 1e-10 ? 0 
+	dlnB_dlna = (C.f_nu() < 1e-10 ? 0
 		     : (C.asteps(i_eta)/B_eta)*(B_right-B_left)/(aRight-aLeft));
 
       cout << setprecision(PREC)
@@ -1809,7 +1818,7 @@ int main(int argn, char *args[]){
       //output the 14 unique components of each A_1loop and A
       if(PRINTA){
       for(int iA=0; iA<14; iA++)
-	cout << setw(WIDTH) <<  Aacdbef[nAI(aU[iA],cU[iA],dU[iA], 
+	cout << setw(WIDTH) <<  Aacdbef[nAI(aU[iA],cU[iA],dU[iA],
 					    bU[iA],eU[iA],fU[iA])*nk + i];
       }
 
@@ -1819,7 +1828,7 @@ int main(int argn, char *args[]){
           cout << setw(WIDTH) << y[(nUP+iI)*nk + i];
       }
 
-      //output the P_{B,j}(k) and P_{T,j} TNS correction terms; 
+      //output the P_{B,j}(k) and P_{T,j} TNS correction terms;
       //  j is in {2,4,6} for P_{B,j} and {2,4,6,8} for P_{T,j}
       if(C.PRINTRSD() && PRINTBIAS){
 	cout << setw(WIDTH) << Pbisj(i,2,2,y)*a3_ain3

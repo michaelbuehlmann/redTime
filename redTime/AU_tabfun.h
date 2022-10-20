@@ -24,7 +24,7 @@ const int TF_DEBUG_ALLOC = 0;
 
 class tabulated_function{
  public:
-  tabulated_function(char *filename, int nCol, 
+  tabulated_function(char *filename, int nCol,
 		     const int nvars, const int nrx, const int nrf){
 
     //initialize x and f tables
@@ -46,7 +46,7 @@ class tabulated_function{
     int status = 1;
     do{
       tabulated_function::discard_comments(&tableFile);
-      for(int i=0; i<nvars; i++) status = status && (tableFile >> temp_in[i]); 
+      for(int i=0; i<nvars; i++) status = status && (tableFile >> temp_in[i]);
       xTable[n] = temp_in[nrx];
       fTable[n] = temp_in[nrf];
       n++;
@@ -76,7 +76,7 @@ class tabulated_function{
   }
 
   tabulated_function(int nCol){
-    
+
     //initialize x and f tables
     tableSize = nCol;
     tableSizeX = 0;
@@ -102,7 +102,7 @@ class tabulated_function{
     tableSizeY=0;
   }
 
-  tabulated_function(int nColx, int nColy, const double *xArray, 
+  tabulated_function(int nColx, int nColy, const double *xArray,
 		     const double *yArray, const double *fArray){
 
     //initialize x, y, and f tables
@@ -114,7 +114,7 @@ class tabulated_function{
     fTable = new double[tableSizeX * tableSizeY];
 
     if(TF_DEBUG_ALLOC)
-    std::cout << "#tabulated_function: allocated x, y, and f arrays of size "
+    std::cout << "#tabulated_function: constructor3: allocated x, y, and f arrays of size "
               << tableSizeX << " " << tableSizeY << std::endl;
 
     //fill tables from inputs
@@ -134,7 +134,7 @@ class tabulated_function{
     fTable = new double[tableSizeX * tableSizeY];
 
     if(TF_DEBUG_ALLOC)
-    std::cout << "#tabulated_function: allocated x, y, and f arrays of size "
+    std::cout << "#tabulated_function: constructor4: allocated x, y, and f arrays of size "
               << tableSizeX << " " << tableSizeY << std::endl;
   }
 
@@ -148,7 +148,7 @@ class tabulated_function{
     fTable = new double[tableSize];
 
     if(TF_DEBUG_ALLOC)
-    std::cout << "#tabulated_function: constructor2: allocated x and f "
+    std::cout << "#tabulated_function: initialize1: allocated x and f "
               << "arrays of size " << tableSize << std::endl;
 
     //fill with zeros for now
@@ -162,7 +162,7 @@ class tabulated_function{
 
   int initialize(int nCol, const double *xArray, const double *fArray){
 
-    //initialize x and f tables  
+    //initialize x and f tables
     tableSize = nCol;
     tableSizeX = 0;
     tableSizeY = 0;
@@ -170,17 +170,17 @@ class tabulated_function{
     fTable = new double[tableSize];
 
     if(TF_DEBUG_ALLOC)
-    std::cout << "#tabulated_function: initialize: allocated x and f "
+    std::cout << "#tabulated_function: initialize2: allocated x and f "
 	      << "arrays of size " << tableSize << std::endl;
 
-    //fill tables from inputs  
+    //fill tables from inputs
     for(int i=0; i<tableSize; i++) xTable[i] = xArray[i];
     for(int i=0; i<tableSize; i++) fTable[i] = fArray[i];
 
     return 0;
   }
 
-  int initialize(int nColx, int nColy, const double *xArray, 
+  int initialize(int nColx, int nColy, const double *xArray,
 		 const double *yArray, const double *fArray){
 
     //initialize x, y, and f tables
@@ -192,9 +192,13 @@ class tabulated_function{
     fTable = new double[tableSizeX * tableSizeY];
 
     if(TF_DEBUG_ALLOC)
-    std::cout << "#tabulated_function: allocated x, y, and f arrays of size "
+    std::cout << "#tabulated_function: initialize3: allocated x, y, and f arrays of size "
               << tableSizeX << " " << tableSizeY << std::endl;
 
+    if(nColx == 0 || nColy == 0) {
+      std::cout << "invalid table: nColx=" << nColx << ", nColy=" << nColy << std::endl;
+      std::abort();
+    }
     //fill tables from inputs
     for(int i=0; i<tableSizeX; i++) xTable[i] = xArray[i];
     for(int i=0; i<tableSizeY; i++) yTable[i] = yArray[i];
@@ -212,15 +216,15 @@ class tabulated_function{
     return 0;
   }
 
-  int input_arrays(const double *xArray, const double *yArray, 
+  int input_arrays(const double *xArray, const double *yArray,
 		   const double *fArray){
     //input from arrays
     for(int i=0; i<tableSizeX; i++) xTable[i] = xArray[i];
     for(int j=0; j<tableSizeY; j++) yTable[j] = yArray[j];
     for(int i=0; i<tableSizeX; i++){
-      for(int j=0; j<tableSizeY; j++){ 
+      for(int j=0; j<tableSizeY; j++){
 	int k = nf(i,j);
-	fTable[k] = fArray[k]; 
+	fTable[k] = fArray[k];
       }
     }
     return 0;
@@ -233,23 +237,23 @@ class tabulated_function{
     else if(n1>=tableSize-2) //allows for extrapolation to the right
       return tabulated_function::linInterp(&xTable[tableSize-2],
 					   &fTable[tableSize-2],x);
-    else 
+    else
       return tabulated_function::cubicInterp(&xTable[n1-1],&fTable[n1-1],x);
   }
 
   double f(double x, double y) const {
     int nx = tabulated_function::findNx_2d(x);
     int ny = tabulated_function::findNy_2d(y);
-    if(nx<0 || nx>=tableSizeX){ 
-      std::cout << "ERROR: x=" << x << " out of bounds; nx=" << nx 
+    if(nx<0 || nx>=tableSizeX){
+      std::cout << "ERROR: x=" << x << " out of bounds; nx=" << nx
 		<< ", tableSizes=" << tableSizeX << ' ' << tableSizeY
 		<<std::endl;
       std::abort(); }
     if(ny<0 || ny>=tableSizeY){
-      std::cout << "ERROR: ny=" << ny << " out of bounds\n"; 
-      std::cout << "#      tableSizeX=" << tableSizeX << ", tableSizeY=" 
+      std::cout << "ERROR: ny=" << ny << " out of bounds\n";
+      std::cout << "#      tableSizeX=" << tableSizeX << ", tableSizeY="
 		<< tableSizeY << std::endl;
-      std::abort(); 
+      std::abort();
     }
 
     double fTabY[] = {0,0,0,0}; //f[] vs. y[] at interpolated x
@@ -267,7 +271,7 @@ class tabulated_function{
       fTabY[1] = tabulated_function::cubicInterp(&xTable[nx-1],fTabB,x);
       fTabY[2] = tabulated_function::cubicInterp(&xTable[nx-1],fTabC,x);
       fTabY[3] = tabulated_function::cubicInterp(&xTable[nx-1],fTabD,x);
-      
+
       if(ny>0 && ny<tableSizeY-2)
 	return tabulated_function::cubicInterp(&yTable[ny-1],fTabY,y);
       else if(ny==0)
@@ -275,7 +279,7 @@ class tabulated_function{
       else if(ny==tableSizeY-2)
 	return tabulated_function::linInterp(&yTable[ny],&fTabY[1],y);
       else{
-	std::cout << "#tabulated_function::f: ERROR: extrapolation in y." 
+	std::cout << "#tabulated_function::f: ERROR: extrapolation in y."
 		  << std::endl;
 	abort();
       }
@@ -290,7 +294,7 @@ class tabulated_function{
       fTabY[1] = tabulated_function::linInterp(&xTable[nx],fTabB,x);
       fTabY[2] = tabulated_function::linInterp(&xTable[nx],fTabC,x);
       fTabY[3] = tabulated_function::linInterp(&xTable[nx],fTabD,x);
-      
+
       if(ny>0 && ny<tableSizeY-2)
 	return tabulated_function::cubicInterp(&yTable[ny-1],fTabY,y);
       else if(ny==0)
@@ -312,9 +316,9 @@ class tabulated_function{
     int n1 = tabulated_function::findN(x);
     return tabulated_function::df(n1);
   }
- 
+
   double df(int n1) const {
-    if(n1 == tableSize-1) 
+    if(n1 == tableSize-1)
       return (fTable[n1]-fTable[n1-1])/(xTable[n1]-xTable[n1-1]);
     else
       return (fTable[n1+1]-fTable[n1])/(xTable[n1+1]-xTable[n1]);
@@ -336,7 +340,7 @@ class tabulated_function{
     double f01 = fTable[(nx-ixmax)*tableSizeY + ny+1-iymax];
     double f10 = fTable[(nx+1-ixmax)*tableSizeY + ny-iymax];
     double f11 = fTable[(nx+1-ixmax)*tableSizeY + ny+1-iymax];
-    
+
     double Dx0 = xTable[nx+1-ixmax] - xTable[nx-ixmax];
     double Dy0 = yTable[ny+1-iymax] - yTable[ny-iymax];
 
@@ -355,7 +359,7 @@ class tabulated_function{
   }
 
   double d2f(int n1) const {
-    return 2.0/(xTable[n1+1]-xTable[n1-1]) 
+    return 2.0/(xTable[n1+1]-xTable[n1-1])
            * ( tabulated_function::df(n1) - tabulated_function::df(n1-1) );
   }
 
@@ -363,19 +367,19 @@ class tabulated_function{
     //clean up before re-initializing arrays
     if(tableSize+tableSizeX > 0){
       if(TF_DEBUG_ALLOC)
-      std::cout << "#tabulated function: deleting x Table of dim " 
+      std::cout << "#tabulated function: deleting x Table of dim "
 		<< tableSize+tableSizeX << std::endl;
       delete [] xTable;
     }
     if(tableSizeY > 0){
       if(TF_DEBUG_ALLOC)
-      std::cout << "#tabulated function: deleting y Table of dim " 
+      std::cout << "#tabulated function: deleting y Table of dim "
 		<< tableSizeY << std::endl;
       delete [] yTable;
     }
     if(tableSize + tableSizeX + tableSizeY > 0){
       if(TF_DEBUG_ALLOC)
-      std::cout << "#tabulated function: deleting f Table of dim " 
+      std::cout << "#tabulated function: deleting f Table of dim "
 		<< tableSize + tableSizeX*tableSizeY << std::endl;
       delete [] fTable;
       tableSize = tableSizeX = tableSizeY = 0;
@@ -401,7 +405,7 @@ class tabulated_function{
     return( (len==2)?(fmin(x[0],x[1])):(fmin(fmin(x,len-1),x[len-1])) ); }
   inline void discard_comments(std::ifstream *file) const {
     while(file->peek()=='#' || file->peek()=='\n'){file->ignore(10000,'\n');} }
-  
+
   inline int nf(int nx, int ny) const { return ny + tableSizeY*nx; }
 
   double linInterp(double *xTab, double *fTab, double xEval) const {
@@ -414,46 +418,46 @@ class tabulated_function{
     //Input the function f(x), in the form of a table of 4 values fTab[]
     //given at the four points xTab[].  Output the interpolated value
     //of the function at xEval, using a cubic polynomial interpolation.
-    
+
     //make sure that we're interpolating, not extrapolating!
     if(xEval<fmin(xTab,4) || xEval>fmax(xTab,4)){
       std::cout << "cubicInterp WARNING: xEval=" << xEval
-		<< " out of bounds.  You are" 
+		<< " out of bounds.  You are"
 		<< std::endl
-		<< "                     extrapolating, not interpolating!" 
+		<< "                     extrapolating, not interpolating!"
 		<< std::endl;
       abort();
     }
-    
+
     double F = (xEval-xTab[1])*(xEval-xTab[2])*(xEval-xTab[3])
-      /(xTab[0]-xTab[1])/(xTab[0]-xTab[2])/(xTab[0]-xTab[3])*fTab[0] 
+      /(xTab[0]-xTab[1])/(xTab[0]-xTab[2])/(xTab[0]-xTab[3])*fTab[0]
       + (xEval-xTab[0])*(xEval-xTab[2])*(xEval-xTab[3])
-      /(xTab[1]-xTab[0])/(xTab[1]-xTab[2])/(xTab[1]-xTab[3])*fTab[1] 
+      /(xTab[1]-xTab[0])/(xTab[1]-xTab[2])/(xTab[1]-xTab[3])*fTab[1]
       + (xEval-xTab[0])*(xEval-xTab[1])*(xEval-xTab[3])
-      /(xTab[2]-xTab[0])/(xTab[2]-xTab[1])/(xTab[2]-xTab[3])*fTab[2] 
+      /(xTab[2]-xTab[0])/(xTab[2]-xTab[1])/(xTab[2]-xTab[3])*fTab[2]
       + (xEval-xTab[0])*(xEval-xTab[1])*(xEval-xTab[2])
       /(xTab[3]-xTab[0])/(xTab[3]-xTab[1])/(xTab[3]-xTab[2])*fTab[3];
     return(F);
   }
 
-  int findN(double x) const { 
-    //do something simple for now; can use a spiffier algorithm if 
+  int findN(double x) const {
+    //do something simple for now; can use a spiffier algorithm if
     //large tables are necessary
     int n = 0;
     while(xTable[n+1]<x && n<tableSize-2){n++;}
     return n;
   }
 
-  int findNx_2d(double x) const { 
-    //do something simple for now; can use a spiffier algorithm if 
+  int findNx_2d(double x) const {
+    //do something simple for now; can use a spiffier algorithm if
     //large tables are necessary
     int n = 0;
     while(xTable[n+1]<x && n<tableSizeX-2){n++;}
     return n;
   }
 
-  int findNy_2d(double y) const { 
-    //do something simple for now; can use a spiffier algorithm if 
+  int findNy_2d(double y) const {
+    //do something simple for now; can use a spiffier algorithm if
     //large tables are necessary
     int n = 0;
     while(yTable[n+1]<y && n<tableSizeY-2){n++;}

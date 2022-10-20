@@ -1,0 +1,7 @@
+scripts/output
+redTime/redTime
+.venv
+*.o
+*.mod
+camb_mod/camb
+camb_mod_full
