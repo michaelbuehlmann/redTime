@@ -1,0 +1,133 @@
+#!/bin/bash
+
+set -e
+
+#output directory
+OUT_DIR=output
+mkdir -p $OUT_DIR
+
+CAMB_MODERN=false
+
+#executables
+REDTIME_EXEC=../redTime/redTime
+
+
+if [ "$CAMB_MODERN" = true ]; then
+	## MODERN CAMB (install with `pip install camb`)
+	## (also make sure to compile redTime with MODERN_CAMB enabled)
+	CAMB_EXEC=camb
+	CAMB_TEMPLATE=camb_template_modern.ini
+else
+	## OLD (MODIFIED CAMB
+	## (also make sure to have HighLExtrapTemplate_lenspotentialCls.dat in the working directory)
+	CAMB_EXEC=../camb_mod/camb
+	CAMB_TEMPLATE=camb_template.ini
+fi
+
+#redtime output redshifts
+REDTIME_OUTPUTZ="3.04 2.478 2.02 1.799 1.61 1.376 1.209 1.006 0.779 0.736 0.695 0.656 0.6431 0.618 0.578 0.539 0.502 0.471 0.434 0.402 0.364 0.304 0.242 0.212 0.154 0.101 0.0"
+
+#cosmological parameters
+#COSMO_NS=${1}
+#COSMO_SIG8=${2}
+#COSMO_H=${3}
+#COSMO_OMCH2=${4}
+#COSMO_OMBH2=${5}
+#COSMO_OMNUH2=${6}
+#COSMO_TCMB=${7}
+#COSMO_W0=${8}
+#COSMO_WA=${9}
+#COSMO_TAU=${10}
+#
+COSMO_NS=${6}
+COSMO_SIG8=${4}
+COSMO_H=${5}
+COSMO_OMMH2=${2}
+COSMO_OMBH2=${3}
+COSMO_OMNUH2=${9}
+COSMO_TCMB=2.726
+COSMO_W0=${7}
+COSMO_WA=${8}
+COSMO_TAU=0.09
+COSMO_MODEL=${1}
+
+COSMO_OMCH2=$(echo ${COSMO_OMMH2} - ${COSMO_OMBH2} - ${COSMO_OMNUH2} | bc -l)
+
+#redTime switches: NL, 1-loop, printlin, printrsd
+REDTIME_SWITCHES="1 0 1 1"
+
+#number of redtime output redshifts
+REDTIME_NOUT=$(echo ${REDTIME_OUTPUTZ} | wc -w)
+
+#derived parameters; no need for user to edit these
+COSMO_DER_OMEGAMH2=$(echo ${COSMO_OMBH2} + ${COSMO_OMCH2} + ${COSMO_OMNUH2} | bc -l)
+COSMO_DER_OMEGAM=$(echo ${COSMO_DER_OMEGAMH2} / ${COSMO_H} / ${COSMO_H} | bc -l)
+COSMO_DER_OMEGAB=$(echo ${COSMO_OMBH2} / ${COSMO_H} / ${COSMO_H} | bc -l)
+COSMO_DER_OMEGANU=$(echo ${COSMO_OMNUH2} / ${COSMO_H} / ${COSMO_H} | bc -l)
+COSMO_DER_F_B=$(echo ${COSMO_OMBH2} / ${COSMO_DER_OMEGAMH2} | bc -l)
+COSMO_DER_F_C=$(echo ${COSMO_OMCH2} / ${COSMO_DER_OMEGAMH2} | bc -l)
+COSMO_DER_F_NU=$(echo ${COSMO_OMNUH2} / ${COSMO_DER_OMEGAMH2} | bc -l)
+COSMO_DER_F_CB=$(echo ${COSMO_DER_F_B} + ${COSMO_DER_F_C} | bc -l)
+ARE_NU_MASSLESS=$(echo "${COSMO_OMNUH2} < 0.0000000001" | bc)
+COSMO_DER_MASSLESS_NU=$(echo "3.046*${ARE_NU_MASSLESS}" | bc -l)
+COSMO_DER_MASSIVE_NU=$(echo 3.046 - ${COSMO_DER_MASSLESS_NU} | bc -l)
+# COSMO_DER_MASSLESS_NU=$(echo "0.046+3.0*${ARE_NU_MASSLESS}" | bc -l)
+# COSMO_DER_MASSIVE_NU=$(echo "3*(1-${ARE_NU_MASSLESS})" | bc -l)
+#echo "#run: cosmology with Omega_m = " ${COSMO_DER_OMEGAM} ", f_baryon = " ${COSMO_DER_F_B} ", f_cdm = " ${COSMO_DER_F_C} ", f_nu = " ${COSMO_DER_F_NU}
+#echo "#run: cosmology with ns=" ${COSMO_NS} ", sig8=" ${COSMO_SIG8} ", h=" ${COSMO_H} ", Och2=" ${COSMO_OMCH2} ", Obh2=" ${COSMO_OMBH2} ", tau=" ${COSMO_TAU}
+
+###############################################################################
+#################################  RUN CAMB  ##################################
+###############################################################################
+
+#generate camb ini file and run camb
+COSMO_H_CAMB=$(echo ${COSMO_H} "*100" | bc -l)
+sed -e "s/CAMB_TEMPLATE_OUTROOT/${OUT_DIR}\/camb/g" \
+	-e "s/CAMB_TEMPLATE_OMBH2/${COSMO_OMBH2}/g" \
+	-e "s/CAMB_TEMPLATE_OMCH2/${COSMO_OMCH2}/g" \
+	-e "s/CAMB_TEMPLATE_OMNUH2/${COSMO_OMNUH2}/g" \
+	-e "s/CAMB_TEMPLATE_H0/${COSMO_H_CAMB}/g" \
+	-e "s/CAMB_TEMPLATE_W0/${COSMO_W0}/g" \
+	-e "s/CAMB_TEMPLATE_WA/${COSMO_WA}/g" \
+	-e "s/CAMB_TEMPLATE_TCMB/${COSMO_TCMB}/g" \
+	-e "s/CAMB_TEMPLATE_TAU/${COSMO_TAU}/g" \
+	-e "s/CAMB_TEMPLATE_NS/${COSMO_NS}/g" \
+	-e "s/CAMB_TEMPLATE_MASSLESS_NU/${COSMO_DER_MASSLESS_NU}/g" \
+	-e "s/CAMB_TEMPLATE_MASSIVE_NU/${COSMO_DER_MASSIVE_NU}/g" \
+	$CAMB_TEMPLATE > $OUT_DIR/temp_camb.ini
+
+${CAMB_EXEC} $OUT_DIR/temp_camb.ini > $OUT_DIR/temp_camb.output
+
+#write sigma_8 to file
+cat $OUT_DIR/temp_camb.output  | tail -1 | tr '=' '\n' | tail -1 > $OUT_DIR/cambout_sigma8_z0.dat
+
+###############################################################################
+#################################  RUN REDTIME  ###############################
+###############################################################################
+
+cd $OUT_DIR
+
+#redTime cosmological parameters
+echo ${COSMO_NS} > params_redTime.dat
+echo ${COSMO_SIG8} >> params_redTime.dat
+echo ${COSMO_H} >> params_redTime.dat
+echo ${COSMO_DER_OMEGAM} >> params_redTime.dat
+echo ${COSMO_DER_OMEGAB} >> params_redTime.dat
+echo ${COSMO_DER_OMEGANU} >> params_redTime.dat
+echo ${COSMO_TCMB} >> params_redTime.dat
+echo ${COSMO_W0} >> params_redTime.dat
+echo ${COSMO_WA} >> params_redTime.dat
+
+#redTime switches, outputs, transfer functions
+echo ${REDTIME_SWITCHES} >> params_redTime.dat
+echo "200" >> params_redTime.dat                      #initial redshift
+echo ${REDTIME_NOUT} >> params_redTime.dat
+echo ${REDTIME_OUTPUTZ} >> params_redTime.dat
+echo "camb_transfer_z0.dat" >> params_redTime.dat  #cdm+baryon transfer
+echo "0" >> params_redTime.dat                        #nu interp switch
+echo "camb_transfer_z" >> params_redTime.dat       #nu transfer root
+echo "33" >> params_redTime.dat                       #nu interp data ...
+echo "200 100 50 20 10 5 4 3 2.5 2 1.8 1.6 1.4 1.2 1 0.8 0.75 0.7 0.66 0.62 0.58 0.54 0.5 0.47 0.43 0.4 0.35 0.3 0.25 0.2 0.15 0.1 0" >> params_redTime.dat #(continued)
+
+./../${REDTIME_EXEC} > redTime_${COSMO_MODEL}.dat
+mv params_redTime.dat params_redTime_${COSMO_MODEL}.dat
