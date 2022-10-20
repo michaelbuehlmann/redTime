@@ -15,8 +15,10 @@
 //    You should have received a copy of the GNU General Public License
 //    along with redTime.  If not, see <http://www.gnu.org/licenses/>.
 
+#include <cmath>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 const int TF_DEBUG_ALLOC = 0;
 
@@ -40,7 +42,7 @@ public:
 
     // read from file
     int n = 0;
-    double temp_in[nvars];
+    std::vector<double> temp_in(nvars);
 
     std::ifstream tableFile(filename, std::ios::in);
     int status = 1;
@@ -370,7 +372,7 @@ public:
     double dfdy = linInterp(&xTable[nx - ixmax], dfdyTab, x);
 
     // output derivative in theta_dir direction
-    return dfdx * cos(theta_dir) + dfdy * sin(theta_dir);
+    return dfdx * std::cos(theta_dir) + dfdy * std::sin(theta_dir);
   }
 
   double d2f(double x) const {

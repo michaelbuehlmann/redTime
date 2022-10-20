@@ -169,8 +169,11 @@ inline int nAI(int a, int c, int d, int b, int e, int f) {
   return 32 * a + 16 * c + 8 * d + 4 * b + 2 * e + f;
 }
 
-int dummy_jacobian(double t, const double y[], double *dfdy, double dfdt[],
-                   void *params) {
+int dummy_jacobian(double t __attribute__((unused)),
+                   const double y[] __attribute__((unused)),
+                   double *dfdy __attribute__((unused)),
+                   double dfdt[] __attribute__((unused)),
+                   void *params __attribute__((unused))) {
   return GSL_SUCCESS;
 }
 
@@ -791,8 +794,7 @@ int PZ_reg(int n, const double *Pq, const double *Pk, double *PZn) {
   for (int i = 0; i < np; i++) {
 
     // r>1
-    double si = dlnk * (i - np), r = exp(-si), r2 = sq(r), r3 = r * r2,
-           r4 = sq(r2), r5 = r * r4;
+    double si = dlnk * (i - np), r = exp(-si), r2 = sq(r), r3 = r * r2;
     double Zi = Zreg_n(n, r);
     Gs[i] = Zi * r3;
   }
@@ -801,8 +803,7 @@ int PZ_reg(int n, const double *Pq, const double *Pk, double *PZn) {
 
   for (int i = np + 1; i < 2 * np; i++) {
     // r<1
-    double si = dlnk * (i - np), r = exp(-si), r2 = sq(r), r3 = r * r2,
-           r4 = sq(r2), r5 = r * r4;
+    double si = dlnk * (i - np), r = exp(-si), r2 = sq(r), r3 = r * r2;
     double Zi = Zreg_n(n, r);
     Gs[i] = Zi * r3;
   }
@@ -832,8 +833,8 @@ const int betan0_n[7] = {2, 2, 2, 2, 2, 2, 2};
 
 const int Z_n[7] = {0, 1, -1, 3, -3, 5, -5};
 
-int compute_Aacdbef_Rlabc_PTjm_PMRn_full(double eta, const double *y,
-                                         double *Aacdbef,
+int compute_Aacdbef_Rlabc_PTjm_PMRn_full(double eta __attribute__((unused)),
+                                         const double *y, double *Aacdbef,
                                          double Rlabc[nUQ * nk],
                                          double PTjm[9][nk],
                                          double PMRn[8][nk]) {
@@ -1379,11 +1380,9 @@ int compute_Aacdbef_Rlabc_PTjm_PMRn_full(double eta, const double *y,
 // 1-loop computation: z1l at which to evaluate 1-loop
 const double z1l = 10.0, eta_z1l = log((1.0 + C.z_in()) / (1.0 + z1l));
 
-int compute_Aacdbef_Rlabc_PTjm_PMRn_1loop(double eta, const double *y,
-                                          double *Aacdbef,
-                                          double Rlabc[nUQ * nk],
-                                          double PTjm[9][nk],
-                                          double PMRn[8][nk]) {
+int compute_Aacdbef_Rlabc_PTjm_PMRn_1loop(
+    double eta, const double *y __attribute__((unused)), double *Aacdbef,
+    double Rlabc[nUQ * nk], double PTjm[9][nk], double PMRn[8][nk]) {
 
   static int init = 0;
   static double A_z1l[64 * nk], R_z1l[nUQ * nk], PT_z1l[9][nk], PMR_z1l[8][nk],
@@ -1523,11 +1522,12 @@ double Omega(int i, int j, double A, double k) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // derivatives of power spectrum and I matrix
-int derivatives_LIN(double eta, const double y[], double dy[], void *params) {
+int derivatives_LIN(double eta, const double y[], double dy[],
+                    void *params __attribute__((unused))) {
 
   for (int i = 0; i < nU * nk; i++)
     dy[i] = 0;
-  double A = C.a_in() * exp(eta), z = 1.0 / A - 1.0;
+  double A = C.a_in() * exp(eta);
 
 #pragma omp parallel for schedule(dynamic)
   for (int i = 0; i < nk; i++) {
@@ -1549,7 +1549,8 @@ int derivatives_LIN(double eta, const double y[], double dy[], void *params) {
   return GSL_SUCCESS;
 }
 
-int derivatives(double eta, const double y[], double dy[], void *params) {
+int derivatives(double eta, const double y[], double dy[],
+                void *params __attribute__((unused))) {
   // the array y[17*nk] contains the power spectrum and the I matrix:
   //  y[0..nk-1] is ln(P_00) from kArr[0] to kArr[nk-1]
   //  y[nk..2*nk-1] is ln(P_10) = ln(P_01) from kArr[0] to kArr[nk-1]
@@ -1562,7 +1563,7 @@ int derivatives(double eta, const double y[], double dy[], void *params) {
          << ", a=" << C.a_in() * exp(eta) << ", eta=" << eta << endl;
 
   // scale factor and red shift; note A=scale factor, a is an iteger
-  double A = C.a_in() * exp(eta), z = 1.0 / A - 1.0;
+  double A = C.a_in() * exp(eta);
 
   // initialize
   for (int i = 0; i < nU * nk; i++)
@@ -1683,7 +1684,7 @@ int derivatives(double eta, const double y[], double dy[], void *params) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-int main(int argn, char *args[]) {
+int main() {
 
   // initialize k grid
   for (int i = 0; i < nk; i++) {
@@ -1763,7 +1764,7 @@ int main(int argn, char *args[]) {
 
     // output power spectra
     double a_ain = C.asteps(i_eta) / C.a_in(), a2_ain2 = a_ain * a_ain,
-           a3_ain3 = a2_ain2 * a_ain, a4_ain4 = a2_ain2 * a2_ain2, D_eta[2];
+           a3_ain3 = a2_ain2 * a_ain, a4_ain4 = a2_ain2 * a2_ain2;
     double sV2_eta = C.sigmaV2(C.zsteps(i_eta));
     double H_eta = C.H_H0(C.asteps(i_eta)) * H0h;
     cout << "### main: output at eta=" << eta << ", a=" << C.asteps(i_eta)
@@ -1771,32 +1772,8 @@ int main(int argn, char *args[]) {
          << ", sigma_v^2=" << sV2_eta << endl;
 
     // use linear power spectrum at this redshift for 1-loop outputs
-    double Aacdbef[64 * nk], Rlabc[nUQ * nk], PTjm[9][nk], PMRn[8][nk],
-        y_lin[3 * nk], PT2[nk], PT4[nk], PT6[nk], PT8[nk];
-    /**  //do we want to use linear or non-linear P for P_T, P_MR?
-    if(C.SWITCH_NONLINEAR() && C.SWITCH_1LOOP() && C.PRINTRSD()){
-      for(int i_lin = 0; i_lin<nk; i_lin++){
-        double D_lin[2];
-        C.D_dD(C.zsteps(i_eta),kArr[i_lin],D_lin);
-        double P_lin_i = C.Plin_cb(C.zsteps(i_eta),kArr[i_lin]) / a2_ain2;
-        double f_lin_i = C.asteps(i_eta) * D_lin[1] / D_lin[0];
-        y_lin[i_lin] = log(P_lin_i);
-        y_lin[nk + i_lin] = log(P_lin_i * f_lin_i);
-        y_lin[2*nk + i_lin] = log(P_lin_i * f_lin_i*f_lin_i);
-
-      }
-      if(PRINTBIAS)
-        compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta,y_lin,Aacdbef,Rlabc,PTjm,PMRn);
-      else
-        compute_Aacdbef_Rlabc_PTj_full(eta,y_lin,Aacdbef,Rlabc,PT2,PT4,PT6,PT8);
-    }
-    else if( C.SWITCH_NONLINEAR() && C.PRINTRSD()){
-      if(PRINTBIAS)
-        compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta,y,Aacdbef,Rlabc,PTjm,PMRn);
-      else
-        compute_Aacdbef_Rlabc_PTj_full(eta,y,Aacdbef,Rlabc,PT2,PT4,PT6,PT8);
-    }
-    /**/
+    double Aacdbef[64 * nk], Rlabc[nUQ * nk], PTjm[9][nk], PMRn[8][nk], PT2[nk],
+        PT4[nk], PT6[nk], PT8[nk];
     if (C.SWITCH_NONLINEAR() && C.SWITCH_1LOOP()) {
       if (PRINTBIAS)
         compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta, y, Aacdbef, Rlabc, PTjm,
@@ -1805,7 +1782,6 @@ int main(int argn, char *args[]) {
         compute_Aacdbef_Rlabc_PTj_full(eta, y, Aacdbef, Rlabc, PT2, PT4, PT6,
                                        PT8);
     }
-    /**/
 
     for (int i = 0; i < nk; i++) {
 

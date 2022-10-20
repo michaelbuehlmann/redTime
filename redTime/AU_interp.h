@@ -15,6 +15,8 @@
 //    You should have received a copy of the GNU General Public License
 //    along with redTime.  If not, see <http://www.gnu.org/licenses/>.
 
+#include <iostream>
+
 inline double fmax(double x, double y) { return ((x > y) ? (x) : (y)); }
 inline double fmin(double x, double y) { return ((x < y) ? (x) : (y)); }
 inline double fmax(const double *x, int len) {

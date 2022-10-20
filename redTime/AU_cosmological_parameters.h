@@ -17,8 +17,11 @@
 
 #include <cmath>
 #include <fstream>
+#include <gsl/gsl_integration.h>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <cstring>
 #include <string>
 
 #include <gsl/gsl_errno.h>
@@ -156,8 +159,11 @@ private: /////////////////////////////////////////////////////////////////////
     return GSL_SUCCESS;
   }
 
-  static int dummy_jacobian(double t, const double y[], double *dfdy,
-                            double dfdt[], void *params) {
+  static int dummy_jacobian(double t __attribute__((unused)),
+                            const double y[] __attribute__((unused)),
+                            double *dfdy __attribute__((unused)),
+                            double dfdt[] __attribute__((unused)),
+                            void *params __attribute__((unused))) {
     return GSL_SUCCESS;
   }
 
@@ -489,7 +495,7 @@ public: ///////////////////////////////////////////////////////////////////////
   static double Beta_P(double a, input_data dat) {
 
     // get parameters from p
-    double fn = dat.p[5] / dat.p[3], fc = 1.0 - fn;
+    double fn = dat.p[5] / dat.p[3];
     double k = dat.p[10];
 
     // if not using CAMB interpolation, return 0
@@ -551,9 +557,9 @@ public: ///////////////////////////////////////////////////////////////////////
         BetaArr0[j0] = fn * temp[i_dnu] / temp[i_dc];
 
         if (DEBUG_INTERP)
-          std::cout << "#Beta_P: " << filename0 << setw(20) << aArr[0]
-                    << setw(20) << kArr[j0] << setw(20) << BetaArr0[j0]
-                    << std::endl;
+          std::cout << "#Beta_P: " << filename0 << std::setw(20) << aArr[0]
+                    << std::setw(20) << kArr[j0] << std::setw(20)
+                    << BetaArr0[j0] << std::endl;
 
         ++j0;
       }
@@ -649,10 +655,10 @@ public: ///////////////////////////////////////////////////////////////////////
       Beta_P(0.1, d);
 
       // a and k arrays
-      double lna_min = log(a_min), lna_max = log(a_max),
-             dlna = log(a_max / a_min) / n_lna;
-      double lnk_min = log(k_min), lnk_max = log(k_max),
-             dlnk = log(k_max / k_min) / n_lnk;
+      double lna_min = log(a_min);
+      double dlna = log(a_max / a_min) / n_lna;
+      double lnk_min = log(k_min);
+      double dlnk = log(k_max / k_min) / n_lnk;
       double lnaTab[n_lna + 1], lnkTab[n_lnk + 1];
       double *GTab = new double[n_tot];
       double *dDdaTab = new double[n_tot];
@@ -822,7 +828,6 @@ public: ///////////////////////////////////////////////////////////////////////
       double x0 = -15, x1 = 15;
       double epsabs = 0, epsrel = 1e-4;
       double result, error;
-      double dummy = 0;
       input_data dat;
       input_data_copy(dat0, &dat);
 
