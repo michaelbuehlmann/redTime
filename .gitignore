@@ -5,3 +5,6 @@ redTime/redTime
 *.mod
 camb_mod/camb
 camb_mod_full
+build
+.vscode
+*.lock
