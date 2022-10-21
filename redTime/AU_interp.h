@@ -64,15 +64,6 @@ double cubicInterp(const double *xTab, const double *fTab, double xEval) {
   return (F);
 }
 
-int findN(double x, const double *xTable, int tableSize) {
-  // do something simple for now; can use a spiffier algorithm if
-  // large tables are necessary
-  int n = 0;
-  while (xTable[n + 1] < x && n < tableSize - 1) {
-    n++;
-  }
-  return n;
-}
 
 int findN(int nguess, double x, const double *xTable, int tableSize) {
   // do something simple for now; can use a spiffier algorithm if

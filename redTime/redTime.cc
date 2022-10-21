@@ -94,9 +94,6 @@ double lnkArr[nk], kArr[nk];
 // these are measured in units of nk/16, and must add to (np/nk-1)*16
 const int s_padL = 7 + 16, s_tapL = 1 + 8, s_extL = 16 + 8, s_extR = 16 + 8,
           s_tapR = 1 + 8, s_padR = 7 + 16; // use for np = 8*nk
-// const int s_padL=7, s_tapL=1, s_extL=16, s_extR=16, s_tapR=1, s_padR=7; //use
-// for np = 4*nk const int s_padL=3, s_tapL=1, s_extL=4, s_extR=4, s_tapR=1,
-// s_padR=3; //use for np = 2*nk
 
 const double lnk_pad_min = lnkmin - dlnk * nshift;
 const double lnk_pad_winLo = lnk_pad_min + dlnk * nk * s_padL / 16;
@@ -175,57 +172,6 @@ int dummy_jacobian(double t __attribute__((unused)),
                    double dfdt[] __attribute__((unused)),
                    void *params __attribute__((unused))) {
   return GSL_SUCCESS;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// mode-coupling integrals and vertices
-double gamma(int a, int b, int c, double k, double q, double p) {
-
-  if (DEBUG_ALL || DEBUG_TIMERG_INTEGRAND2)
-    cout << "#gamma begin. Called with a=" << a << ", b=" << b << ", c=" << c
-         << ", k=" << k << ", q=" << q << ", p=" << p << endl;
-
-  double gam = 0, eps_gam = 1e-6;
-  if (a == 0) {
-    if (b == 0 && c == 1)
-      gam = (fabs(p / k) > eps_gam ? 0.25 * (k * k + p * p - q * q) / (p * p)
-                                   : 0);
-    if (b == 1 && c == 0)
-      gam = (fabs(q / k) > eps_gam ? 0.25 * (k * k + q * q - p * p) / (q * q)
-                                   : 0);
-  }
-  if (a == 1 && b == 1 && c == 1) {
-    double k2 = k * k, p2 = p * p, q2 = q * q;
-    if (fabs(p / k) > eps_gam && fabs(q / k) > eps_gam)
-      gam = 0.25 * k2 * (k2 - q2 - p2) / (p2 * q2);
-  }
-
-  if (DEBUG_ALL || DEBUG_TIMERG_INTEGRAND2)
-    cout << "#gamma begin. Returning gam=" << gam << endl;
-
-  return gam;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// interpolate/extrapolate power spectrum with indices
-
-// high-k extrapolation: use Eisenstein-Hu no-wiggle power spectrum
-double T_EH(double k) {
-  static double Omh2 = C.Omega_m() * sq(C.h()), Obh2 = C.Omega_b() * sq(C.h()),
-                Onh2 = C.Omega_nu() * sq(C.h()), Tcmb = C.T_cmb_K();
-  static double alpha_G = 1.0 - 0.328 * log(431.0 * Omh2) * Obh2 / Omh2 +
-                          0.38 * log(22.3 * Omh2) * sq(Obh2 / Omh2);
-  static double r_d =
-      55.234 * C.h() /
-      (pow(Omh2 - Onh2, 0.2538) * pow(Obh2, 0.1278) * pow(1.0 + Onh2, 0.3794));
-
-  double Gamma_eff =
-      C.Omega_m() * C.h() *
-      (alpha_G + (1.0 - alpha_G) / (1.0 + pow(0.43 * k * r_d, 4)));
-  double q_EH = k * sq(Tcmb / 2.7) / Gamma_eff;
-  double L_EH = log(2.0 * M_E + 1.8 * q_EH);
-  double C_EH = 14.2 + 731.0 / (1.0 + 62.5 * q_EH);
-  return L_EH / (L_EH + sq(q_EH) * C_EH);
 }
 
 // power spectrum
@@ -445,24 +391,6 @@ int ifft(double *x, int N) {
 // backward fft, identical to ifft except for lack of normalization factor
 int bfft(double *x, int N) {
   return gsl_fft_halfcomplex_radix2_backward(x, 1, N);
-}
-
-// convolution fo real functions; assume arrays of equal length
-int convolve(int N, double *in0, double *in1, double *out) {
-  fft(in0, N);
-  fft(in1, N);
-
-  // out is now in halfcomplex format
-  out[0] = in0[0] * in1[0];
-  out[N / 2] = in0[N / 2] * in1[N / 2];
-
-  for (int i = 1; i < N / 2; i++) {
-    out[i] = in0[i] * in1[i] - in0[N - i] * in1[N - i];
-    out[N - i] = in0[i] * in1[N - i] + in0[N - i] * in1[i];
-  }
-
-  ifft(out, N);
-  return 0;
 }
 
 // convolution for halfcomplex functions; assume arrays already of equal length
@@ -1476,17 +1404,17 @@ int compute_Aacdbef_Rlabc_PTj_full(double eta, const double *y, double *Aacdbef,
 
 // frontends for parallel computation of A_{acd,bef}, R^\ell_{abc},
 // P_{T,jm}, P_{MR,n}.  Figure out which function to use.
-int compute_Aacdbef_Rlabc_PTjm_PMRn(double eta, const double *y,
-                                    double *Aacdbef, double Rlabc[nUQ * nk],
-                                    double PTjm[9][nk], double PMRn[8][nk]) {
+// int compute_Aacdbef_Rlabc_PTjm_PMRn(double eta, const double *y,
+//                                     double *Aacdbef, double Rlabc[nUQ * nk],
+//                                     double PTjm[9][nk], double PMRn[8][nk]) {
 
-  if (C.SWITCH_1LOOP())
-    return compute_Aacdbef_Rlabc_PTjm_PMRn_1loop(eta, y, Aacdbef, Rlabc, PTjm,
-                                                 PMRn);
+//   if (C.SWITCH_1LOOP())
+//     return compute_Aacdbef_Rlabc_PTjm_PMRn_1loop(eta, y, Aacdbef, Rlabc, PTjm,
+//                                                  PMRn);
 
-  return compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta, y, Aacdbef, Rlabc, PTjm,
-                                              PMRn);
-}
+//   return compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta, y, Aacdbef, Rlabc, PTjm,
+//                                               PMRn);
+// }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Omega matrix (linear evolution)
@@ -1522,32 +1450,6 @@ double Omega(int i, int j, double A, double k) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // derivatives of power spectrum and I matrix
-int derivatives_LIN(double eta, const double y[], double dy[],
-                    void *params __attribute__((unused))) {
-
-  for (int i = 0; i < nU * nk; i++)
-    dy[i] = 0;
-  double A = C.a_in() * exp(eta);
-
-#pragma omp parallel for schedule(dynamic)
-  for (int i = 0; i < nk; i++) {
-    double dPab_i[3] = {0, 0, 0},
-           Pab_i[3] = {exp(y[i]), exp(y[nk + i]), exp(y[2 * nk + i])};
-    for (int c = 0; c < 2; c++) {
-      dPab_i[0] -= Omega(0, c, A, kArr[i]) * Pab_i[c] +
-                   Omega(0, c, A, kArr[i]) * Pab_i[c]; // 00
-      dPab_i[1] -= Omega(0, c, A, kArr[i]) * Pab_i[c + 1] +
-                   Omega(1, c, A, kArr[i]) * Pab_i[c]; // 01=10
-      dPab_i[2] -= Omega(1, c, A, kArr[i]) * Pab_i[c + 1] +
-                   Omega(1, c, A, kArr[i]) * Pab_i[c + 1]; // 11
-    }
-    dy[i] = dPab_i[0] / Pab_i[0];
-    dy[nk + i] = dPab_i[1] / Pab_i[1];
-    dy[2 * nk + i] = dPab_i[2] / Pab_i[2];
-  }
-
-  return GSL_SUCCESS;
-}
 
 int derivatives(double eta, const double y[], double dy[],
                 void *params __attribute__((unused))) {
