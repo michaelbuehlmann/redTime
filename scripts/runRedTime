@@ -1,55 +1,94 @@
 #!/bin/bash
-
 set -e
+SCRIPT=$(realpath "$0")
+SCRIPTPATH=$(dirname "$SCRIPT")
+
+
+##### SETTINGS #################################################################
+CAMB_MODERN=false
+CAMB_EXEC=$SCRIPTPATH/../camb_mod/camb
+REDTIME_EXEC=$SCRIPTPATH/../redTime/redTime
+
+
+##### USAGE ####################################################################
+print_usage () {
+  echo "USAGE: runRedTime --redshift-file <PATH> --output-dir <PATH> [--modern-camb] \\"
+  echo "                  <MODEL_NAME> <omega_m> <omega_b> <s8> <h> <ns> \\"
+  echo "                  <w0> <wa> <omega_nu>"
+}
+
+##### PARSE ARGUMENTS ##########################################################
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --redshift-file)
+      REDSHIFT_FILE="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --output-dir)
+      OUTPUT_DIR="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --modern-camb)
+      CAMB_MODERN=true
+      shift # past argument
+      ;;
+    --*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+if [ "$#" -ne 9 ]; then
+  print_usage
+  exit 1
+elif [ -z "$REDSHIFT_FILE" ] || [ -z "$OUTPUT_DIR" ]; then
+  print_usage
+  exit 1
+fi
+
+# COSMOLOGICAL PARAMETERS
+COSMO_MODEL=${1}
+COSMO_OMMH2=${2}
+COSMO_OMBH2=${3}
+COSMO_SIG8=${4}
+COSMO_H=${5}
+COSMO_NS=${6}
+COSMO_W0=${7}
+COSMO_WA=${8}
+COSMO_OMNUH2=${9}
+COSMO_TCMB=2.726
+COSMO_TAU=0.09
+
+################################################################################
 
 #output directory
-OUT_DIR=output
-mkdir -p $OUT_DIR
+mkdir -p $OUTPUT_DIR
 
-CAMB_MODERN=false
-
-#executables
-REDTIME_EXEC=../redTime/redTime
-
+# read output redshifts
+REDTIME_OUTPUT_Z=$(cat ${REDSHIFT_FILE})
 
 if [ "$CAMB_MODERN" = true ]; then
 	## MODERN CAMB (install with `pip install camb`)
 	## (also make sure to compile redTime with MODERN_CAMB enabled)
-	CAMB_EXEC=camb
-	CAMB_TEMPLATE=camb_template_modern.ini
+	CAMB_TEMPLATE=$SCRIPTPATH/camb_template_modern.ini
 else
 	## OLD (MODIFIED CAMB
 	## (also make sure to have HighLExtrapTemplate_lenspotentialCls.dat in the working directory)
-	CAMB_EXEC=../camb_mod/camb
-	CAMB_TEMPLATE=camb_template.ini
+	CAMB_TEMPLATE=$SCRIPTPATH/camb_template.ini
 fi
 
-#redtime output redshifts
-REDTIME_OUTPUTZ="3.04 2.478 2.02 1.799 1.61 1.376 1.209 1.006 0.779 0.736 0.695 0.656 0.6431 0.618 0.578 0.539 0.502 0.471 0.434 0.402 0.364 0.304 0.242 0.212 0.154 0.101 0.0"
-
-#cosmological parameters
-#COSMO_NS=${1}
-#COSMO_SIG8=${2}
-#COSMO_H=${3}
-#COSMO_OMCH2=${4}
-#COSMO_OMBH2=${5}
-#COSMO_OMNUH2=${6}
-#COSMO_TCMB=${7}
-#COSMO_W0=${8}
-#COSMO_WA=${9}
-#COSMO_TAU=${10}
-#
-COSMO_NS=${6}
-COSMO_SIG8=${4}
-COSMO_H=${5}
-COSMO_OMMH2=${2}
-COSMO_OMBH2=${3}
-COSMO_OMNUH2=${9}
-COSMO_TCMB=2.726
-COSMO_W0=${7}
-COSMO_WA=${8}
-COSMO_TAU=0.09
-COSMO_MODEL=${1}
+##### CALCULATIONS #############################################################
 
 COSMO_OMCH2=$(echo ${COSMO_OMMH2} - ${COSMO_OMBH2} - ${COSMO_OMNUH2} | bc -l)
 
@@ -82,7 +121,7 @@ COSMO_DER_MASSIVE_NU=$(echo 3.046 - ${COSMO_DER_MASSLESS_NU} | bc -l)
 
 #generate camb ini file and run camb
 COSMO_H_CAMB=$(echo ${COSMO_H} "*100" | bc -l)
-sed -e "s/CAMB_TEMPLATE_OUTROOT/${OUT_DIR}\/camb/g" \
+sed -e "s/CAMB_TEMPLATE_OUTROOT/${OUTPUT_DIR}\/camb/g" \
 	-e "s/CAMB_TEMPLATE_OMBH2/${COSMO_OMBH2}/g" \
 	-e "s/CAMB_TEMPLATE_OMCH2/${COSMO_OMCH2}/g" \
 	-e "s/CAMB_TEMPLATE_OMNUH2/${COSMO_OMNUH2}/g" \
@@ -94,18 +133,18 @@ sed -e "s/CAMB_TEMPLATE_OUTROOT/${OUT_DIR}\/camb/g" \
 	-e "s/CAMB_TEMPLATE_NS/${COSMO_NS}/g" \
 	-e "s/CAMB_TEMPLATE_MASSLESS_NU/${COSMO_DER_MASSLESS_NU}/g" \
 	-e "s/CAMB_TEMPLATE_MASSIVE_NU/${COSMO_DER_MASSIVE_NU}/g" \
-	$CAMB_TEMPLATE > $OUT_DIR/temp_camb.ini
+	$CAMB_TEMPLATE > $OUTPUT_DIR/temp_camb.ini
 
-${CAMB_EXEC} $OUT_DIR/temp_camb.ini > $OUT_DIR/temp_camb.output
+${CAMB_EXEC} $OUTPUT_DIR/temp_camb.ini > $OUTPUT_DIR/temp_camb.output
 
 #write sigma_8 to file
-cat $OUT_DIR/temp_camb.output  | tail -1 | tr '=' '\n' | tail -1 > $OUT_DIR/cambout_sigma8_z0.dat
+cat $OUTPUT_DIR/temp_camb.output  | tail -1 | tr '=' '\n' | tail -1 > $OUTPUT_DIR/cambout_sigma8_z0.dat
 
 ###############################################################################
 #################################  RUN REDTIME  ###############################
 ###############################################################################
 
-cd $OUT_DIR
+cd $OUTPUT_DIR
 
 #redTime cosmological parameters
 echo ${COSMO_NS} > params_redTime.dat

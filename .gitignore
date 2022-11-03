@@ -1,6 +1,10 @@
 scripts/output
-redTime/redTime
+src/redTime
+examples/1_redTime/results.dat
+examples/2_scripts/output
+examples/2_scripts/HighLExtrapTemplate_lenspotentialCls.dat
 .venv
+.cache
 *.o
 *.mod
 camb_mod/camb

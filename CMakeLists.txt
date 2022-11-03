@@ -7,5 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
 find_package(OpenMP)
+find_package(GSL REQUIRED)
 
-add_subdirectory(redTime)
+add_subdirectory(src)
