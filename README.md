@@ -27,6 +27,18 @@ executable.
 
 ### Running via script
 
+The repository provides a bash script that ingests cosmological parameters and
+target redshifts and invokes CAMB and the redTime executable to calculate the
+timeRG spectra. The script can be found in ``scripts/runRedTime``. See
+``examples/2_scripts`` for an example on how to use it.
+
+```
+USAGE:
+runRedTime --redshift-file <PATH> --output-dir <PATH> [--modern-camb] \
+           <MODEL_NAME> <omega_m> <omega_b> <s8> <h> <ns> \
+           <w0> <wa> <omega_nu>
+```
+
 
 ### Running redTime directly
 
