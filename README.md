@@ -6,6 +6,8 @@ redshift-space distortion corrections of Taruya, Nishimichi, and Saito (2010)
 
 ## Installation (CMake)
 
+### redTime
+
 redTime requires the [GNU Scientific Library
 (GSL)](https://www.gnu.org/software/gsl/). CMake will automatically look for an
 installation of GSL. If it cannot be detected automatically, you can set the
@@ -18,6 +20,17 @@ information.
 ```bash
 mkdir build && cd build
 cmake ..
+make
+```
+
+
+### CAMB
+
+The repository includes a modified version of CAMB (targeting dark energy models).
+To build, simply run (requires gfortran):
+
+```bash
+cd camb_mod
 make
 ```
 
@@ -35,8 +48,8 @@ target redshifts and invokes CAMB and the redTime executable to calculate the
 timeRG spectra. The script can be found in ``scripts/runRedTime``. See
 ``examples/2_scripts`` for an example on how to use it.
 
-```
-USAGE:
+```bash
+# USAGE:
 runRedTime --redshift-file <PATH> --output-dir <PATH> [--modern-camb] \
            <MODEL_NAME> <omega_m> <omega_b> <s8> <h> <ns> \
            <w0> <wa> <omega_nu>
