@@ -1,16 +1,19 @@
 # redTime
 
-Cosmological perturbation theory code of Upadhye (2019) using the Time-Renormalization Group method of Pietroni (2008) and computing the redshift-space distortion corrections of Taruya, Nishimichi, and Saito (2010)
+Cosmological perturbation theory code of Upadhye (2019) using the
+Time-Renormalization Group method of Pietroni (2008) and computing the
+redshift-space distortion corrections of Taruya, Nishimichi, and Saito (2010)
 
 ## Installation (CMake)
 
-redTime requires the [GNU Scientific Library (GSL)](https://www.gnu.org/software/gsl/). CMake will automatically look
-for an installation of GSL. If it cannot be detected automatically, you can set the ``GSL_ROOT_DIR`` environmental
-variable (the script expects to find libraries at ``$GSL_ROOT_DIR/lib`` and the GSL headers at
-``$GSL_ROOT_DIR/include/gsl``). Check the [CMake documentation](https://cmake.org/cmake/help/latest/module/FindGSL.html)
-for more information.
-
-
+redTime requires the [GNU Scientific Library
+(GSL)](https://www.gnu.org/software/gsl/). CMake will automatically look for an
+installation of GSL. If it cannot be detected automatically, you can set the
+``GSL_ROOT_DIR`` environmental variable (the script expects to find libraries at
+``$GSL_ROOT_DIR/lib`` and the GSL headers at ``$GSL_ROOT_DIR/include/gsl``).
+Check the [CMake
+documentation](https://cmake.org/cmake/help/latest/module/FindGSL.html) for more
+information.
 
 ```bash
 mkdir build && cd build

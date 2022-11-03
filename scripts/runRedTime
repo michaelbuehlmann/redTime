@@ -7,7 +7,7 @@ SCRIPTPATH=$(dirname "$SCRIPT")
 ##### SETTINGS #################################################################
 CAMB_MODERN=false
 CAMB_EXEC=$SCRIPTPATH/../camb_mod/camb
-REDTIME_EXEC=$SCRIPTPATH/../redTime/redTime
+REDTIME_EXEC=$SCRIPTPATH/../build/redTime
 
 
 ##### USAGE ####################################################################
@@ -135,7 +135,12 @@ sed -e "s/CAMB_TEMPLATE_OUTROOT/${OUTPUT_DIR}\/camb/g" \
 	-e "s/CAMB_TEMPLATE_MASSIVE_NU/${COSMO_DER_MASSIVE_NU}/g" \
 	$CAMB_TEMPLATE > $OUTPUT_DIR/temp_camb.ini
 
+echo "EXECUTING CAMB..."
+start=`date +%s`
 ${CAMB_EXEC} $OUTPUT_DIR/temp_camb.ini > $OUTPUT_DIR/temp_camb.output
+end=`date +%s`
+runtime=$((end-start))
+echo "DONE (${runtime}s)"
 
 #write sigma_8 to file
 cat $OUTPUT_DIR/temp_camb.output  | tail -1 | tr '=' '\n' | tail -1 > $OUTPUT_DIR/cambout_sigma8_z0.dat
@@ -166,7 +171,15 @@ echo "camb_transfer_z0.dat" >> params_redTime.dat  #cdm+baryon transfer
 echo "0" >> params_redTime.dat                        #nu interp switch
 echo "camb_transfer_z" >> params_redTime.dat       #nu transfer root
 echo "33" >> params_redTime.dat                       #nu interp data ...
+# these are the redshifts specified in the camb parameter file (CAMB outputs)
 echo "200 100 50 20 10 5 4 3 2.5 2 1.8 1.6 1.4 1.2 1 0.8 0.75 0.7 0.66 0.62 0.58 0.54 0.5 0.47 0.43 0.4 0.35 0.3 0.25 0.2 0.15 0.1 0" >> params_redTime.dat #(continued)
 
-./../${REDTIME_EXEC} > redTime_${COSMO_MODEL}.dat
+echo "EXECUTING REDTIME"
+start=`date +%s`
+$REDTIME_EXEC > redTime_${COSMO_MODEL}.dat
+end=`date +%s`
+runtime=$((end-start))
+echo "DONE (${runtime}s)"
+
+# Cleanup
 mv params_redTime.dat params_redTime_${COSMO_MODEL}.dat
