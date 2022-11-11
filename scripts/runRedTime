@@ -96,7 +96,7 @@ COSMO_OMCH2=$(echo ${COSMO_OMMH2} - ${COSMO_OMBH2} - ${COSMO_OMNUH2} | bc -l)
 REDTIME_SWITCHES="1 0 1 1"
 
 #number of redtime output redshifts
-REDTIME_NOUT=$(echo ${REDTIME_OUTPUTZ} | wc -w)
+REDTIME_NOUT=$(echo ${REDTIME_OUTPUT_Z} | wc -w)
 
 #derived parameters; no need for user to edit these
 COSMO_DER_OMEGAMH2=$(echo ${COSMO_OMBH2} + ${COSMO_OMCH2} + ${COSMO_OMNUH2} | bc -l)
