@@ -166,7 +166,7 @@ echo ${COSMO_WA} >> params_redTime.dat
 echo ${REDTIME_SWITCHES} >> params_redTime.dat
 echo "200" >> params_redTime.dat                      #initial redshift
 echo ${REDTIME_NOUT} >> params_redTime.dat
-echo ${REDTIME_OUTPUTZ} >> params_redTime.dat
+echo ${REDTIME_OUTPUT_Z} >> params_redTime.dat
 echo "camb_transfer_z0.dat" >> params_redTime.dat  #cdm+baryon transfer
 echo "0" >> params_redTime.dat                        #nu interp switch
 echo "camb_transfer_z" >> params_redTime.dat       #nu transfer root
