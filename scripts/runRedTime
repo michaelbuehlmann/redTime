@@ -18,6 +18,7 @@ print_usage () {
 }
 
 ##### PARSE ARGUMENTS ##########################################################
+KEEP_CAMB_FILES=false
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --modern-camb)
       CAMB_MODERN=true
+      shift # past argument
+      ;;
+    --keep-camb-files)
+      KEEP_CAMB_FILES=true
       shift # past argument
       ;;
     --*)
@@ -183,3 +188,19 @@ echo "DONE (${runtime}s)"
 
 # Cleanup
 mv params_redTime.dat params_redTime_${COSMO_MODEL}.dat
+if [ "$KEEP_CAMB_FILES" = false ]; then
+  rm temp_camb.*
+  rm cambout_*.dat
+  rm camb_params.ini
+  rm camb_scalCls.dat
+  rm camb_transfer_z*.dat
+  rm camb_matterpower_z*.dat
+else
+  mkdir -p camb_${COSMO_MODEL}
+  mv temp_camb.* camb_${COSMO_MODEL}
+  mv cambout_*.dat camb_${COSMO_MODEL}
+  mv camb_params.ini camb_${COSMO_MODEL}
+  mv camb_scalCls.dat camb_${COSMO_MODEL}
+  mv camb_transfer_z*.dat camb_${COSMO_MODEL}
+  mv camb_matterpower_z*.dat camb_${COSMO_MODEL}
+fi
