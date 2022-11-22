@@ -1,0 +1,83 @@
+#!/bin/bash
+set -e
+
+SCRIPT=$(realpath "$0")
+SCRIPTPATH=$(dirname "$SCRIPT")
+
+##### USAGE ####################################################################
+print_usage () {
+    echo "USAGE: runRedTimeBatch [--output-dir PATH] <REDSHIFT_FILE> <MODEL_FILE>"
+    echo ""
+    echo "Arguments:"
+    echo "       <REDSHIFT_FILE>:   path to file with output redshifts (space separated)"
+    echo "       <MODEL_FILE>:      path to file with cosmological parameters (1 model per line)"
+    echo "                          format: name omega_m omega_b s8 h ns w0 wa omega_nu"
+    echo ""
+    echo "Optional Arguments:"
+    echo "       --output-dir PATH  where the redTime outputs should be stored"
+    echo "                          default: ./output"
+}
+
+##### PARSE ARGUMENTS ##########################################################
+
+# DEFAULTS
+OUTPUT_DIR="./output"
+
+POSITIONAL_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --output-dir)
+      OUTPUT_DIR="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+# Check that we have correct #arguments
+if [ "$#" -ne 2 ]; then
+    print_usage
+    exit 1
+fi
+REDSHIFT_FILE=${1}
+MODEL_FILE=${2}
+
+##### PRINT INFO ###############################################################
+N_MODELS=$(cat ${MODEL_FILE} | sed '/^\s*#/d' | grep '' -c)
+N_REDSHIFTS=$(cat ${REDSHIFT_FILE} | wc -w)
+echo "redTimeBatch invoked with:"
+echo "  REDSHIFT_FILE: ${REDSHIFT_FILE}"
+echo "                 (contains ${N_REDSHIFTS} redshifts)"
+echo "  MODEL_FILE:    ${MODEL_FILE}"
+echo "                 (contains ${N_MODELS} cosmologies)"
+echo "outputs will be generated in: ${OUTPUT_DIR}"
+echo ""
+
+
+##### RUN ######################################################################
+mkdir -p ${OUTPUT_DIR}
+# copy HighLExtrapTemplate_lenspotentialCLs.dat to working directory
+cp $SCRIPTPATH/HighLExtrapTemplate_lenspotentialCls.dat .
+
+# Loop over cosmologies
+for ((i=1; i<=${N_MODELS}; i++)); do
+  MODEL=$(cat ${MODEL_FILE} | sed '/^\s*#/d' | head -${i} | tail -1)
+  echo "Running model #${i}: $MODEL"
+  $SCRIPTPATH/runRedTime --redshift-file $REDSHIFT_FILE \
+                         --output-dir $OUTPUT_DIR \
+                         $MODEL
+  echo "Model #${i} finished"
+  echo ""
+done
+
+# Cleanup
+rm HighLExtrapTemplate_lenspotentialCls.dat

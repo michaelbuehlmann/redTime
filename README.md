@@ -36,29 +36,42 @@ make
 
 ## Running
 
-redTime is run from the command line. The executable can either be directly
-called or via a script that reads cosmological parameters from a file, calls
-CAMB and then passes the parameters and transferfunctions to the redTime
-executable.
+### The easy way
+The repository provides two scripts (in the `scripts` folder) that ingest
+cosmological parameters, call CAMB and then pass the parameters and
+transferfunctions to the redTime executable.
 
-### Running via script
+#### Single cosmology
 
-The repository provides a bash script that ingests cosmological parameters and
-target redshifts and invokes CAMB and the redTime executable to calculate the
-timeRG spectra. The script can be found in ``scripts/runRedTime``. See
-``examples/2_scripts`` for an example on how to use it.
+Cosmological parameters are passed via command line. The output redshifts have
+to be specified in a separate file (whitespace delimited).
 
 ```bash
-# USAGE:
-runRedTime --redshift-file <PATH> --output-dir <PATH> [--modern-camb] \
+runRedTime --redshift-file <PATH> --output-dir <PATH> \
            <MODEL_NAME> <omega_m> <omega_b> <s8> <h> <ns> \
            <w0> <wa> <omega_nu>
 ```
 
+#### Batch mode
 
-### Running redTime directly
+Multiple cosmologies can be processed with a single command. The cosmologies
+have to be specified in a separate file in the following format:
 
-The code requires the following files:
+```
+name omega_m omega_b s8 h ns w0 wa omega_nu
+```
+
+```bash
+runRedTimeBatch <REDSHIFT_FILE> <MODELS_FILE> [--output-dir PATH]
+```
+
+See ``examples/2_scripts`` for an example.
+
+### The hard way
+You will first need to manually run CAMB to produce transfer function and power
+spectra files and then run ``redTime`` directly.
+
+The ``redTime`` requires the following files:
 
 * ``params_redTime.dat``, listing the cosmological parameters and code inputs.
   See the example file for the format.
@@ -67,7 +80,7 @@ The code requires the following files:
 * if running with massive neutrinos, then a series of higher-redshift transfer
   functions.
 
-  See ``examples/1_redTime/run.sh`` for an example.
+See ``examples/1_redTime/run.sh`` for an example.
 
 ## Outputs
 

@@ -1,25 +1,2 @@
 #!/bin/bash
-set -e
-
-# Path to scripts directory, containing runRedTime, camb templates, and
-# HighLExtrapTemplate_lenspotentialCLs.dat if running with modified CAMB
-SCRIPT_DIR="../../scripts"
-
-# Path to file containing cosmological parameters (1 model per line)
-MODELFILE="models.dat"
-OUTPUT_DIR="output"
-REDSHIFT_FILE="target_redshifts.txt"
-
-NMODELS=$(cat ${MODELFILE} | sed '/^\s*#/d' | grep '' -c)
-
-# copy HighLExtrapTemplate_lenspotentialCLs.dat to working directory
-cp $SCRIPT_DIR/HighLExtrapTemplate_lenspotentialCls.dat .
-
-
-for ((i=1; i<=${NMODELS}; i++)); do
-  MODEL=$(cat ${MODELFILE} | sed '/^\s*#/d' | head -${i} | tail -1)
-  echo $i $MODEL
-  $SCRIPT_DIR/runRedTime --redshift-file $REDSHIFT_FILE \
-                         --output-dir $OUTPUT_DIR \
-                         $MODEL
-done
+../../scripts/runRedTimeBatch target_redshifts.txt models.dat
