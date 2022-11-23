@@ -8,6 +8,7 @@ __pycache__
 
 scripts/output
 src/redTime
+src/convertPk
 examples/1_redTime/results.dat
 examples/2_scripts/output
 examples/2_scripts/HighLExtrapTemplate_lenspotentialCls.dat
