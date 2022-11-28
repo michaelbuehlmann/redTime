@@ -7,6 +7,10 @@ if(OpenMP_CXX_FOUND)
 endif()
 set_target_properties(redTime PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
 
-add_executable(convertPk convert_pk.c)
-target_link_libraries(convertPk PRIVATE GSL::gsl GSL::gslcblas m)
-set_target_properties(convertPk PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
+add_executable(convertPkFull convert_pk.c)
+target_link_libraries(convertPkFull PRIVATE GSL::gsl GSL::gslcblas m)
+set_target_properties(convertPkFull PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
+
+add_executable(convertPt convert_pt.c)
+target_link_libraries(convertPt PRIVATE GSL::gsl GSL::gslcblas m)
+set_target_properties(convertPt PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
