@@ -61,9 +61,9 @@ int main(int argc, char**argv) {
     int kk;
     char k_filename[256], pk_filename[256];
 
-    // these will be the output files, come up with a naming convention or input one 
-    // note to self, need to create sub-directories for redshifts 
-    sprintf(k_filename, "%s/STEP%d/k_M%03d_no_interp_test.dat",red_file, step_no, model_no); 
+    // these will be the output files, come up with a naming convention or input one
+    // note to self, need to create sub-directories for redshifts
+    sprintf(k_filename, "%s/STEP%d/k_M%03d_no_interp_test.dat",red_file, step_no, model_no);
     sprintf(pk_filename, "%s/STEP%d/pk_M%03d_no_interp_test.dat",red_file, step_no, model_no);
 
     FILE *fp_k = fopen(k_filename, "w");
@@ -85,7 +85,7 @@ int main(int argc, char**argv) {
     gsl_interp_accel_free(acc);
 
     free(Pk_pt);  free(D); free(Pk_nu);
-    free(k_pt); 
+    free(k_pt);
     fclose(fp_k); fclose(fp_pk);
   }
   free(k);
@@ -96,7 +96,7 @@ double get_hubble(int model_no, char* params_file) {
   double h;
   double Om, Omb, Omnu, w0, wa, s8, n_s;
   char name[5];
-  FILE *fp = fopen(params_file,"r"); // this is just parameters file 
+  FILE *fp = fopen(params_file,"r"); // this is just parameters file
 
   if (fp == NULL) {
     fprintf(stderr, "Couldn't read: %s\n", params_file);
@@ -121,7 +121,7 @@ double get_f_cb(int model_no, char* params_file) {
   double h, Om, Omb, Omnu, w0, wa, s8, n_s;
 
   char name[5];
-  FILE *fp = fopen(params_file,"r"); 
+  FILE *fp = fopen(params_file,"r");
   if (fp == NULL) {
     fprintf(stderr, "Couldn't read: %s\n", params_file);
     return(-1);
@@ -149,7 +149,7 @@ int process_PT_runs(double h, int model_no, int step_no, int nk, double *k, doub
   system(sed_call);
   FILE *fp = fopen("junk.dat", "r");
 
-  // need to confirm this 
+  // need to confirm this
   int nread = 1, nk_pt=128, nz=33;//nk_pt=202, nz=26;
 
   double any[15];
@@ -163,7 +163,7 @@ int process_PT_runs(double h, int model_no, int step_no, int nk, double *k, doub
 
   int z_no;
   int steps[8] = {163, 189, 247, 300, 347, 401, 453, 499};
-  int output_z[8] = {2, 4, 7, 11, 17, 21, 24, 32};// need to fix this
+  int output_z[8] = {9,11,14,18, 24, 28, 31, 32};
 
   for (int i = 0; i < 8; i++)
     if (step_no == steps[i])

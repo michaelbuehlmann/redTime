@@ -178,7 +178,7 @@ echo "0" >> params_redTime.dat                        #nu interp switch
 echo "camb_transfer_z" >> params_redTime.dat       #nu transfer root
 echo "33" >> params_redTime.dat                       #nu interp data ...
 # these are the redshifts specified in the camb parameter file (CAMB outputs)
-echo "200 100 50 20 10 5 4 3 2.5 2 1.8 1.6 1.4 1.2 1 0.8 0.75 0.7 0.66 0.62 0.58 0.54 0.5 0.47 0.43 0.4 0.35 0.3 0.25 0.2 0.15 0.1 0" >> params_redTime.dat #(continued)
+echo "200 100 50 20 10 5 4 3 2.5 2.0180180180180183 1.8 1.6103896103896105 1.4 1.2 1.0059880239520962 0.8 0.75 0.7 0.655683690280066 0.62 0.58 0.54 0.5 0.47 0.43366619115549243 0.4 0.35 0.3 0.2422744128553771 0.2 0.15 0.10076670317634195 0" >> params_redTime.dat #(continued)
 
 echo "running redTime"
 start=`date +%s`
