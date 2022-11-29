@@ -340,13 +340,13 @@ public: ///////////////////////////////////////////////////////////////////////
     S_NU = neut_interp_type;
 
     // derived parameters
-    Og_c = C_rho_gam * (TK_c * TK_c * TK_c * TK_c) / (h0_c * h0_c);
-    fnu_c = On_c / Om_c;
-    fcb_c = 1.0 - fnu_c;
-    On_hot_c = C_nu_hot * Og_c;
+    Og_c = C_rho_gam * (TK_c * TK_c * TK_c * TK_c) / (h0_c * h0_c); // radiation density
+    fnu_c = On_c / Om_c; // fraction of massive neutrinos
+    fcb_c = 1.0 - fnu_c; // fraction of non-neutrino mass 
+    On_hot_c = C_nu_hot * Og_c; // density of hot neutrinos 
     anu_c = C_nu_hot * Og_c / (fnu_c * Om_c + 1e-15); // nu cold for a>=a_nu
-    Or_c = Og_c + On_hot_c * (anu_c > 1.0);
-    OL_c = 1.0 - Om_c - Or_c;
+    Or_c = Og_c + On_hot_c * (anu_c > 1.0); // radiation density including hot neutrinos 
+    OL_c = 1.0 - Om_c - Or_c; // density of Lambda component 
 
     // initialized!  Don't change parameters after this.
     init = 1;
@@ -389,10 +389,21 @@ public: ///////////////////////////////////////////////////////////////////////
   //  The vector of cosmological parameters, used in static functions, is
   //      i = 0  1 2  3  4  5  6  7  8  9 10
   //    p[i]=ns s8 h Om Ob On OL Tc w0 wa  k
+
+
+  // dark energy equation of state (eq 1)
   double w(double a) { return w0_c + wa_c * (1.0 - a); } // DE eos
   static double w(double a, double *p) { return p[8] + p[9] * (1.0 - a); }
 
-  double E(double a) { // E=rho_DE(a)/rho_DE(1)
+
+
+  /*****************************************/
+  /* E values and derivatives */
+
+  // last line of eq 28, dark energy-dependent part of growth
+  // E=rho_DE(a)/rho_DE(1)
+  // w0,wa inputs and parameter input options
+  double E(double a) { 
     return std::pow(a, -3.0 * (1.0 + w0_c + wa_c)) *
            exp(-3.0 * wa_c * (1.0 - a));
   }
@@ -401,6 +412,7 @@ public: ///////////////////////////////////////////////////////////////////////
            exp(-3.0 * p[9] * (1.0 - a));
   }
 
+  // derivative of E(a) with respect to a 
   double dEda(double a) {
     return 3.0 * E(a) * (wa_c - (1.0 + w0_c + wa_c) / a);
   }
@@ -408,20 +420,18 @@ public: ///////////////////////////////////////////////////////////////////////
     return 3.0 * E(a, p) * (p[9] - (1.0 + p[8] + p[9]) / a);
   }
 
-  double dE_dlna(double a) { return a * dEda(a); }
-  static double dE_dlna(double a, double *p) { return a * dEda(a, p); }
 
-  double d2E_dlna2(double a) {
-    return 3.0 * a * dEda(a) * (wa_c * a - (1.0 + w0_c + wa_c)) +
-           3.0 * E(a) * wa_c * a;
-  }
-  static double d2E_dlna2(double a, double *p) {
-    return 3.0 * a * dEda(a, p) * (p[9] * a - (1.0 + p[8] + p[9])) +
-           3.0 * E(a, p) * p[9] * a;
-  }
 
-  double Y(double a) { // Y=rho_nu(a)/rho_cb(a)
-    if (a >= anu_c)
+  /***************************************************************/
+  // Y values and derivates 
+
+  double Y(double a) { 
+    // ratio of neutrino density to cb density as a function of redshift
+    // if late time, estimate this as a redshift-independent fraction 
+    // if early time, 
+    // Y=rho_nu(a)/rho_cb(a)
+    // for use in working out H(a)
+    if (a >= anu_c) 
       return fnu_c / fcb_c;                      // cold
     return C_nu_hot * Og_c / (fcb_c * Om_c * a); // hot
   }
@@ -433,7 +443,6 @@ public: ///////////////////////////////////////////////////////////////////////
       return fn / fc;                       // cold
     return C_nu_hot * Og / (fc * p[3] * a); // hot
   }
-
   double dYda(double a) {
     if (a >= anu_c)
       return 0;
@@ -447,11 +456,19 @@ public: ///////////////////////////////////////////////////////////////////////
     return -C_nu_hot * Og / ((p[3] - p[5]) * a * a);
   }
 
+  /*************************************************/
+
   double H2_H02(double a) {
+    // eq 27 of Upadhye 2013
+    // Og is the radiation density including massless neutrinos 
+    // OL is the dark energy component 
+    // the rest is f_cb Om (cb component) +  f_cb Om Y(a) (neutrino component)
     return fcb_c * Om_c * (1.0 + Y(a)) / pow(a, 3) + OL_c * E(a) +
            Og_c / pow(a, 4);
   }
+
   static double H2_H02(double a, double *p) {
+    // as above with parameters given by p matrix
     double Og = C_rho_gam * std::pow(p[7] * p[7] / p[2], 2);
     return (p[3] - p[5]) * (1.0 + Y(a, p)) / pow(a, 3) + p[6] * E(a, p) +
            Og / pow(a, 4);
@@ -474,6 +491,7 @@ public: ///////////////////////////////////////////////////////////////////////
                 std::pow(a, 4) +
             p[6] * dEda(a, p) - 4.0 * Og / std::pow(a, 5));
   }
+  /****************************************************/
 
   // time-dependent Omega_m
   double Omega_m(double a) { return Om_c / (a * a * a * H2_H02(a)); }
@@ -619,6 +637,7 @@ public: ///////////////////////////////////////////////////////////////////////
   }
 
   static int D_dD(double z, input_data d, double *D_dDda) {
+  /* for a given redshift z*/
 
     // check bounds
     double k = d.p[10];
@@ -814,6 +833,12 @@ public: ///////////////////////////////////////////////////////////////////////
 
   static double Plin(double z, input_data dat0) {
 
+    // linear power spectrum 
+    // work out unnormalized sigma8 integrand, use to get scaling to sigma8 value 
+    // then estimate total linear matter power as
+    // Norm * pow(dat0.p[10], dat0.p[0]) * T * T * F * F * DdD[0] * DdD[0];
+    // which is Norm * k^ns * T_cb^2 * F^2 * DdD[0]^2
+    //
     if (DEBUG_LINEAR)
       cout << "#Plin begin. Called with z=" << z << " and k=" << dat0.p[10]
            << endl;
@@ -873,6 +898,8 @@ public: ///////////////////////////////////////////////////////////////////////
   }
 
   double Plin_nu(double z, input_data dat) {
+    /* linear neutrino power spectrum estimated as 
+     * ( BetaP(a)/ [(om_m - om_nu)/ om_m  + BetaP(a)]* om_m/om_n )^2 P_lin */
     double fn = dat.p[5] / dat.p[3], fc = 1.0 - fn;
     if (fn <= 1e-10)
       return 0;
