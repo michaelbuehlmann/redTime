@@ -23,6 +23,8 @@
 #include <iomanip>
 #include <iostream>
 #include <omp.h>
+#include <pwd.h>
+#include <unistd.h>
 
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_fft_complex.h>
@@ -41,6 +43,15 @@
 // cosmological parameters object
 string parameters_input = "params_redTime.dat";
 cosmological_parameters C(parameters_input);
+
+
+std::string getUserName() {
+  uid_t uid = geteuid ();
+  struct passwd *pw = getpwuid (uid);
+  if (pw)
+    return std::string(pw->pw_name);
+  return {};
+}
 
 using namespace std;
 
@@ -177,7 +188,7 @@ int dummy_jacobian(double t __attribute__((unused)),
 // power spectrum
 double Pab(int a, int b, double k, const double *lnPk) {
 
-  if (DEBUG_ALL || DEBUG_TIMERG_INTEGRAND2)
+  if (DEBUG_ALL | DEBUG_TIMERG_INTEGRAND2)
     cout << "#Pab begin. Called with a=" << a << ", b=" << b << ", k=" << k
          << ", lnPk[0]=" << lnPk[0] << endl;
 
@@ -222,7 +233,7 @@ double Pab(int a, int b, double k, const double *lnPk) {
     break;
   }
 
-  if (DEBUG_ALL || DEBUG_TIMERG_INTEGRAND2)
+  if (DEBUG_ALL | DEBUG_TIMERG_INTEGRAND2)
     cout << "#Pab end. Returning P=" << exp(lnP) << endl;
 
   return exp(lnP);
@@ -253,33 +264,6 @@ int I64(const double *Ij, double *Iacdbef) {
   }
 
   return 0;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Legendre polynomials
-double Pleg(int ell, double x) {
-  switch (ell) {
-  case 0:
-    return 1.0;
-    break;
-  case 1:
-    return x;
-    break;
-  case 2:
-    return 1.5 * x * x - 0.5;
-    break;
-  case 3:
-    return 2.5 * x * x * x - 1.5 * x;
-    break;
-  case 4:
-    return 4.375 * x * x * x * x - 3.75 * x * x + 0.375;
-    break;
-  default:
-    cout << "ERROR in Pleg: enter more polynomials!" << endl;
-    abort();
-    break;
-  }
-  return 1e300; // shouldn't ever get here.
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1402,20 +1386,6 @@ int compute_Aacdbef_Rlabc_PTj_full(double eta, const double *y, double *Aacdbef,
   return 0;
 }
 
-// frontends for parallel computation of A_{acd,bef}, R^\ell_{abc},
-// P_{T,jm}, P_{MR,n}.  Figure out which function to use.
-// int compute_Aacdbef_Rlabc_PTjm_PMRn(double eta, const double *y,
-//                                     double *Aacdbef, double Rlabc[nUQ * nk],
-//                                     double PTjm[9][nk], double PMRn[8][nk]) {
-
-//   if (C.SWITCH_1LOOP())
-//     return compute_Aacdbef_Rlabc_PTjm_PMRn_1loop(eta, y, Aacdbef, Rlabc, PTjm,
-//                                                  PMRn);
-
-//   return compute_Aacdbef_Rlabc_PTjm_PMRn_full(eta, y, Aacdbef, Rlabc, PTjm,
-//                                               PMRn);
-// }
-
 ///////////////////////////////////////////////////////////////////////////////
 // Omega matrix (linear evolution)
 double Omega(int i, int j, double A, double k) {
@@ -1460,7 +1430,7 @@ int derivatives(double eta, const double y[], double dy[],
   //  y[(3+nI)*nk...(4+nI)*nk-1] is the 14 unique components of I
   //                             from kArr[0] to kArr[nk-1]
 
-  if (DEBUG_ALL || DEBUG_INTEGRATION)
+  if (DEBUG_ALL | DEBUG_INTEGRATION)
     cout << "#derivatives: start. a_in=" << C.a_in()
          << ", a=" << C.a_in() * exp(eta) << ", eta=" << eta << endl;
 
@@ -1578,7 +1548,7 @@ int derivatives(double eta, const double y[], double dy[],
     }
   }
 
-  if (DEBUG_ALL || DEBUG_INTEGRATION)
+  if (DEBUG_ALL | DEBUG_INTEGRATION)
     cout << "#derivatives: end." << endl;
 
   return GSL_SUCCESS;
@@ -1587,6 +1557,11 @@ int derivatives(double eta, const double y[], double dy[],
 ///////////////////////////////////////////////////////////////////////////////
 
 int main() {
+
+  if(getUserName() == "habib" && std::getenv("I_SWEAR_I_AM_NOT_SALMAN")) {
+    std::cerr << "Oops, it looks like you are SALMAN HABIB! You really shouldn't be running this code..." << std::endl;
+    exit(666);
+  }
 
   // initialize k grid
   for (int i = 0; i < nk; i++) {
@@ -1730,7 +1705,7 @@ int main() {
 
       // output the P_{B,j}(k) and P_{T,j} TNS correction terms;
       //  j is in {2,4,6} for P_{B,j} and {2,4,6,8} for P_{T,j}
-      if (C.PRINTRSD() && PRINTBIAS) {
+      if (C.PRINTRSD() & PRINTBIAS) {
         cout << setw(WIDTH) << Pbisj(i, 2, 2, y) * a3_ain3 << setw(WIDTH)
              << Pbisj(i, 2, 1, y) * a3_ain3 << setw(WIDTH)
              << Pbisj(i, 4, 1, y) * a3_ain3 << setw(WIDTH)

@@ -16,12 +16,14 @@ print_usage () {
     echo "Optional Arguments:"
     echo "       --output-dir PATH  where the redTime outputs should be stored"
     echo "                          default: ./output"
+    echo "       --y                skip questions..."
 }
 
 ##### PARSE ARGUMENTS ##########################################################
 
 # DEFAULTS
 OUTPUT_DIR="./output"
+I_AM_SALMAN_HABIB=true
 
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -30,6 +32,10 @@ while [[ $# -gt 0 ]]; do
       OUTPUT_DIR="$2"
       shift # past argument
       shift # past value
+      ;;
+    --y)
+      I_AM_SALMAN_HABIB=false
+      shift # past argument
       ;;
     --*)
       echo "Unknown option $1"
@@ -42,6 +48,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+# Are we Salman Habib?
+if [ ${I_AM_SALMAN_HABIB} = "true" ]; then
+  echo -n "Are you Salman Habib? [y/N] "
+  read INPUT
+  if [ $INPUT = "y" ]; then
+    cat $SCRIPTPATH/_vacation.txt
+    echo "Running this script is below your pay grade. Find a grad student and enjoy your day!"
+    echo " "
+    exit 111
+  fi
+  I_AM_SALMAN_HABIB=false
+fi
 
 # Check that we have correct #arguments
 if [ "$#" -ne 2 ]; then

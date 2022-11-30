@@ -1,2 +1,2 @@
 #!/bin/bash
-../../scripts/runRedTimeBatch redshifts_ce.txt models_ce.dat
+../../scripts/runRedTimeBatch redshifts_ce.txt models_ce.dat --y

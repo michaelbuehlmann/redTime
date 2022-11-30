@@ -8,7 +8,7 @@ LIBS=-lgsl -lgslcblas -lm
 # CCFLAGS += -DMODERN_CAMB
 
 .PHONY: all
-all: redTime convertPk
+all: redTime convertPkFull convertPt
 
 redTime: redTime.cc AU_cosmological_parameters.h AU_interp.h AU_tabfun.h
 	g++ redTime.cc -o redTime $(CCFLAGS) $(PATHS) $(LIBS)
@@ -17,7 +17,7 @@ convertPkFull: convert_pk.c
 	gcc convert_pk.c -o convertPkFull $(CFLAGS) $(PATHS) $(LIBS)
 
 convertPt: convert_pt.c
-	gcc convert_pt.c -o convertPT $(CFLAGS) $(PATHS) $(LIBS)
+	gcc convert_pt.c -o convertPt $(CFLAGS) $(PATHS) $(LIBS)
 
 clean:
 	$(RM) redTime
