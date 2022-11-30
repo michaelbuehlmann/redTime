@@ -57,9 +57,6 @@ using namespace std;
 
 // debug flags
 const int DEBUG_ALL = 0;
-const int DEBUG_LINEAR = 0;
-const int DEBUG_TIMERG_EVOL = 0;
-const int DEBUG_TIMERG_INTEGRAND = 0;
 const int DEBUG_TIMERG_INTEGRAND2 = 0;
 const int DEBUG_INTEGRATION = 0;
 
@@ -69,7 +66,6 @@ const int PRINTA = 0, PRINTI = 0, PRINTQ = 0, PRINTBIAS = 0;
 // const int PRINTLIN=1, PRINTRSD=1;
 
 // some constants
-const double inv_eightpi3 = 1.0 / (8.0 * M_PI * M_PI * M_PI); // 1/(8pi^3)
 const double H0h = 0.00033356754857714242474;                 // H0 / (h/Mpc)
 
 const int nu_int = -2;
@@ -104,7 +100,7 @@ double lnkArr[nk], kArr[nk];
 // split up interval between zero-padding and tapering:
 // these are measured in units of nk/16, and must add to (np/nk-1)*16
 const int s_padL = 7 + 16, s_tapL = 1 + 8, s_extL = 16 + 8, s_extR = 16 + 8,
-          s_tapR = 1 + 8, s_padR = 7 + 16; // use for np = 8*nk
+          s_tapR = 1 + 8; // use for np = 8*nk
 
 const double lnk_pad_min = lnkmin - dlnk * nshift;
 const double lnk_pad_winLo = lnk_pad_min + dlnk * nk * s_padL / 16;
@@ -112,7 +108,6 @@ const double lnk_pad_winLi = lnk_pad_winLo + dlnk * nk * s_tapL / 16;
 const double lnk_pad_winRi =
     lnk_pad_winLi + dlnk * (nk * (16 + s_extL + s_extR) / 16 - 1);
 const double lnk_pad_winRo = lnk_pad_winRi + dlnk * nk * s_tapR / 16;
-const double lnk_pad_max = lnk_pad_winRo + dlnk * nk * s_padR / 16;
 
 // power spectrum and Fourier coefficient window functions
 inline double W_edge(double x) {
@@ -148,8 +143,6 @@ const double eabs_P = 1e-15, erel_P = 1e-6; // eta integration for P(k)
 #else
 const double eabs_P = 1e-7, erel_P = 1e-2; // eta integration for P(k)
 #endif
-const double eabs_A = 1e-15, erel_A = 1e-2; // q,p integration for A(k)
-const double eabs_R = 1e-15, erel_R = 1e-3; // q,p integration for R(k)
 
 // unique components of A_{acd,bef}
 // first 8: 001,bef.  next 6: 111,bef for bef={000, 001, 011, 100, 101, 111}
@@ -164,7 +157,6 @@ const int fU[nUI] = {0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1};
 const int JU[nUI] = {8, 9, 10, 11, 12, 13, 14, 15, 56, 57, 59, 60, 61, 63};
 
 // P_{T,jm}(k_i) is a 2-D array PT[n][i], with n determining j and m as follows:
-const int j_n[9] = {2, 2, 2, 4, 4, 4, 6, 6, 8};
 const int m_n[9] = {2, 1, 0, 2, 1, 0, 1, 0, 0};
 
 inline void discard_comments(std::ifstream *file) {
