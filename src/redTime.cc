@@ -1550,7 +1550,7 @@ int derivatives(double eta, const double y[], double dy[],
 
 int main() {
 
-  if(getUserName() == "habib" && std::getenv("I_SWEAR_I_AM_NOT_SALMAN")) {
+  if(getUserName() == "habib" && !std::getenv("I_SWEAR_I_AM_NOT_SALMAN")) {
     std::cerr << "Oops, it looks like you are SALMAN HABIB! You really shouldn't be running this code..." << std::endl;
     exit(666);
   }
