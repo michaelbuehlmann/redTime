@@ -1,4 +1,4 @@
-name: build
+name: build_and_test
 
 on:
   push:
@@ -25,6 +25,20 @@ jobs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
-    - name: Build
+    - name: Build redTime
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      
+    - name: Build CAMB
+      working-directory: camb_mod
+      run: make
+      
+    - name: Upload binaries
+      uses: actions/upload-artifact@v3
+      with:
+        name: binaries
+        path: |
+          camb_mod/camb
+          build/redTime
+          build/convertPt
+    
