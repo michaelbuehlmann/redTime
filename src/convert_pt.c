@@ -22,7 +22,11 @@ int main(int argc, char**argv) {
   // make output directory
   char mkdir_call[256];
   sprintf(mkdir_call, "mkdir -p %s/STEP%d", red_file, step_no);
-  system(mkdir_call);
+  {
+    int res = system(mkdir_call);
+    if(res)
+      abort();
+  }
 
   for (int mn = 1; mn < (model_no+1); mn++) {
     double *Pk_pt = (double *)malloc(nk_pt*sizeof(double));
@@ -75,7 +79,9 @@ double get_hubble(int model_no, char* params_file) {
   // skip comment lines
   char tmp[300];
   for (int i=0; i < 5; i++){
-          fgets(tmp,300,fp);
+    char* t = fgets(tmp,300,fp);
+    if(t != tmp)
+      abort();
   }
   // read cosmological parameters
   for (int i=0; i < model_no; i++) {
@@ -97,7 +103,9 @@ double get_f_cb(int model_no, char* params_file) {
   // skip comment lines
   char tmp[300];
   for (int i=0; i < 5; i++){
-      fgets(tmp,300,fp);
+      char* t = fgets(tmp,300,fp);
+      if(t != tmp)
+        abort();
   }
   // read cosmological parameters
   for (int i=0; i < model_no; i++) {
@@ -112,7 +120,11 @@ double get_f_cb(int model_no, char* params_file) {
 void process_PT_runs(double h, int model_no, int step_no, double *k_pt, double *Pk, double *D, double *Pk_nu, char* red_file, int nk_pt) {
   char sed_call[256];
   sprintf(sed_call, "sed '/^#/ d' %s/redTime_M%03d.dat > junk.dat", red_file, model_no);
-  system(sed_call);
+  {
+    int res = system(sed_call);
+    if(res)
+      abort();
+  }
 
   FILE *fp = fopen("junk.dat", "r");
   int nread = 1, nz=33;
@@ -125,10 +137,11 @@ void process_PT_runs(double h, int model_no, int step_no, double *k_pt, double *
   double *Pk_nu_h = (double *) malloc(nz*nk_pt*sizeof(double));
   double *D_h = (double *) malloc(nz*nk_pt*sizeof(double));
 
-  int z_no;
+
   int steps[8] = {163, 189, 247, 300, 347, 401, 453, 499};
   int output_z[8] = {9,11,14,18, 24, 28, 31, 32};
 
+  int z_no = 0;
   for (int i = 0; i < 8; i++)
     if (step_no == steps[i])
       z_no = i;
