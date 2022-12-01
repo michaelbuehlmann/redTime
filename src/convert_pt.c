@@ -85,7 +85,9 @@ double get_hubble(int model_no, char* params_file) {
   }
   // read cosmological parameters
   for (int i=0; i < model_no; i++) {
-    fscanf(fp, "%s %lf %lf %lf %lf %lf %lf %lf %lf", name, &Om, &Omb, &s8, &h, &n_s,  &w0, &wa, &Omnu);
+    int nread= fscanf(fp, "%s %lf %lf %lf %lf %lf %lf %lf %lf", name, &Om, &Omb, &s8, &h, &n_s,  &w0, &wa, &Omnu);
+    if(nread != 9)
+      abort(); // not all arguments read
   }
   fclose(fp);
   return(h);
@@ -109,7 +111,9 @@ double get_f_cb(int model_no, char* params_file) {
   }
   // read cosmological parameters
   for (int i=0; i < model_no; i++) {
-    fscanf(fp, "%s %lf %lf %lf %lf %lf %lf %lf %lf", name, &Om, &Omb, &s8, &h, &n_s,  &w0, &wa, &Omnu);
+    int nread = fscanf(fp, "%s %lf %lf %lf %lf %lf %lf %lf %lf", name, &Om, &Omb, &s8, &h, &n_s,  &w0, &wa, &Omnu);
+    if(nread != 9)
+      abort(); // not all arguments read
   }
 
   f_cb = (Om-Omnu)/Om;
