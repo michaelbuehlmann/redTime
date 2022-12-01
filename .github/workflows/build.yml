@@ -33,14 +33,15 @@ jobs:
       working-directory: camb_mod
       run: make
       
+    - name: Archive binaries
+      run: tar -cvf binaries.tar camb_mod/camb  build/redTime build/convertPt
+      
     - name: Upload binaries
       uses: actions/upload-artifact@v3
       with:
         name: binaries
-        path: |
-          camb_mod/camb
-          build/redTime
-          build/convertPt
+        path: binaries.tar
+          
   test:
     runs-on: ubuntu-latest
     needs: [build]
@@ -51,6 +52,8 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: binaries
+      - name: unpack binaries
+        run: tar -xvf binaries.tar
       
       - name: Set up Python 3.10
         uses: actions/setup-python@v3
