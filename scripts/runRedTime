@@ -127,19 +127,29 @@ COSMO_DER_MASSIVE_NU=$(echo 3.046 - ${COSMO_DER_MASSLESS_NU} | bc -l)
 #generate camb ini file and run camb
 COSMO_H_CAMB=$(echo ${COSMO_H} "*100" | bc -l)
 
+CAMB_COSMO_OMBH2=$(printf "%.6e" $(echo $COSMO_OMBH2))
+CAMB_COSMO_OMCH2=$(printf "%.6e" $(echo $COSMO_OMCH2))
+CAMB_COSMO_OMNUH2=$(printf "%.6e" $(echo $COSMO_OMNUH2))
+CAMB_COSMO_H_CAMB=$(printf "%.6e" $(echo $COSMO_H_CAMB))
+CAMB_COSMO_W0=$(printf "%.6e" $(echo $COSMO_W0))
+CAMB_COSMO_WA=$(printf "%.6e" $(echo $COSMO_WA))
+CAMB_COSMO_NS=$(printf "%.6e" $(echo $COSMO_NS))
+CAMB_SCALAR_AMP=2.15903458773893
+
 sed -e "s|CAMB_TEMPLATE_OUTROOT|${OUTPUT_DIR}/camb|g" \
-	-e "s/CAMB_TEMPLATE_OMBH2/${COSMO_OMBH2}/g" \
-	-e "s/CAMB_TEMPLATE_OMCH2/${COSMO_OMCH2}/g" \
-	-e "s/CAMB_TEMPLATE_OMNUH2/${COSMO_OMNUH2}/g" \
-	-e "s/CAMB_TEMPLATE_H0/${COSMO_H_CAMB}/g" \
-	-e "s/CAMB_TEMPLATE_W0/${COSMO_W0}/g" \
-	-e "s/CAMB_TEMPLATE_WA/${COSMO_WA}/g" \
-	-e "s/CAMB_TEMPLATE_TCMB/${COSMO_TCMB}/g" \
-	-e "s/CAMB_TEMPLATE_TAU/${COSMO_TAU}/g" \
-	-e "s/CAMB_TEMPLATE_NS/${COSMO_NS}/g" \
-	-e "s/CAMB_TEMPLATE_MASSLESS_NU/${COSMO_DER_MASSLESS_NU}/g" \
-	-e "s/CAMB_TEMPLATE_MASSIVE_NU/${COSMO_DER_MASSIVE_NU}/g" \
-	$CAMB_TEMPLATE > $OUTPUT_DIR/temp_camb.ini
+        -e "s/CAMB_TEMPLATE_OMBH2/${CAMB_COSMO_OMBH2}/g" \
+        -e "s/CAMB_TEMPLATE_OMCH2/${CAMB_COSMO_OMCH2}/g" \
+        -e "s/CAMB_TEMPLATE_OMNUH2/${CAMB_COSMO_OMNUH2}/g" \
+        -e "s/CAMB_TEMPLATE_H0/${CAMB_COSMO_H_CAMB}/g" \
+        -e "s/CAMB_TEMPLATE_W0/${CAMB_COSMO_W0}/g" \
+        -e "s/CAMB_TEMPLATE_WA/${CAMB_COSMO_WA}/g" \
+        -e "s/CAMB_TEMPLATE_TCMB/${COSMO_TCMB}/g" \
+        -e "s/CAMB_TEMPLATE_TAU/${COSMO_TAU}/g" \
+        -e "s/CAMB_TEMPLATE_NS/${CAMB_COSMO_NS}/g" \
+        -e "s/CAMB_TEMPLATE_MASSLESS_NU/${COSMO_DER_MASSLESS_NU}/g" \
+        -e "s/CAMB_TEMPLATE_MASSIVE_NU/${COSMO_DER_MASSIVE_NU}/g" \
+	-e "s/CAMB_SCALAR_AMP/${CAMB_SCALAR_AMP}e-9/g" \
+        $CAMB_TEMPLATE > $OUTPUT_DIR/temp_camb.ini
 
 echo "running camb..."
 start=`date +%s`
@@ -148,8 +158,36 @@ end=`date +%s`
 runtime=$((end-start))
 echo "done (${runtime}s)"
 
-#write sigma_8 to file
+#rescale sigma8 at z=0
+sigma8=$(cat $OUTPUT_DIR/temp_camb.output  | tail -1 | tr '=' '\n' | tail -1)
+CAMB_SCALAR_AMP_NEW=$(echo "$CAMB_SCALAR_AMP *( $COSMO_SIG8/$sigma8) * ($COSMO_SIG8/$sigma8)" | bc -l)
+echo ${CAMB_SCALAR_AMP_NEW}e-9 > $OUTPUT_DIR/cambout_As_rescaled.dat
+
+sed -e "s|CAMB_TEMPLATE_OUTROOT|${OUTPUT_DIR}/camb|g" \
+        -e "s/CAMB_TEMPLATE_OMBH2/${CAMB_COSMO_OMBH2}/g" \
+        -e "s/CAMB_TEMPLATE_OMCH2/${CAMB_COSMO_OMCH2}/g" \
+        -e "s/CAMB_TEMPLATE_OMNUH2/${CAMB_COSMO_OMNUH2}/g" \
+        -e "s/CAMB_TEMPLATE_H0/${CAMB_COSMO_H_CAMB}/g" \
+        -e "s/CAMB_TEMPLATE_W0/${CAMB_COSMO_W0}/g" \
+        -e "s/CAMB_TEMPLATE_WA/${CAMB_COSMO_WA}/g" \
+        -e "s/CAMB_TEMPLATE_TCMB/${COSMO_TCMB}/g" \
+        -e "s/CAMB_TEMPLATE_TAU/${COSMO_TAU}/g" \
+        -e "s/CAMB_TEMPLATE_NS/${CAMB_COSMO_NS}/g" \
+        -e "s/CAMB_TEMPLATE_MASSLESS_NU/${COSMO_DER_MASSLESS_NU}/g" \
+        -e "s/CAMB_TEMPLATE_MASSIVE_NU/${COSMO_DER_MASSIVE_NU}/g" \
+        -e "s/CAMB_SCALAR_AMP/${CAMB_SCALAR_AMP_NEW}e-9/g" \
+        $CAMB_TEMPLATE > $OUTPUT_DIR/temp_camb.ini
+
+echo "running camb rescaled..."
+start=`date +%s`
+${CAMB_EXEC} $OUTPUT_DIR/temp_camb.ini > $OUTPUT_DIR/temp_camb.output
+end=`date +%s`
+runtime=$((end-start))
+echo "done (${runtime}s)"
+
+# write sigma8 to file 
 cat $OUTPUT_DIR/temp_camb.output  | tail -1 | tr '=' '\n' | tail -1 > $OUTPUT_DIR/cambout_sigma8_z0.dat
+
 
 ###############################################################################
 #################################  RUN REDTIME  ###############################
